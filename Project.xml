@@ -19,10 +19,10 @@
 	<!-- Comment out or delete a line to disable a feature. -->
 
 	<define name="VIDEOS_ALLOWED" /> <!--  Allows support for video files -->
-	<define name="DISCORD_ALLOWED" /> <!--  Allows support for Discord Rich Presence -->
+	<!--define name="DISCORD_ALLOWED" /--> <!--  Allows support for Discord Rich Presence -->
 	<define name="MODDING_ALLOWED" /> <!-- Allows mod loading -->
 
-	<define name="MODCHARTING_TOOLS" /> <!--  Allows for Modcharting Tools to be used. -->
+	<!--define name="MODCHARTING_TOOLS" /--> <!--  Allows for Modcharting Tools to be used. -->
 
 	<define name="LUA_ALLOWED" /> <!--  Allows support for Lua scripting -->
 	<define name="HSCRIPT_ALLOWED" /> <!--  Allows support for Haxe scripting (HScript) -->

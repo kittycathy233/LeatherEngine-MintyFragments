@@ -19,13 +19,13 @@ class OptionsMenu extends MusicBeatState {
 
 	public var pages:Map<String, Array<Option>> = [
 		"Categories" => [
-			new PageOption("Gameplay", "Gameplay", "Change gameplay-related options,\nsuch as downscroll and ghost tapping."),
-			new PageOption("Graphics", "Graphics", "Change graphical-related options,\nsuch as max FPS."),
-			new PageOption("Misc", "Misc", "Change miscellaneous options that\ndon't fit in the other categories."),
+			new PageOption("Gameplay", "Gameplay", "Customize gameplay mechanics and settings.\nAdjust downscroll, ghost tapping, and more."),
+			new PageOption("Graphics", "Graphics", "Configure visual settings and display options.\nChange FPS limits, effects, and appearance."),
+			new PageOption("Miscellaneous", "Misc", "Miscellaneous settings that don't fit into\nother categories, including audio and UI."),
 			#if MODDING_ALLOWED
-			new PageOption("Mod Options", "Mod Options", "Change options for specific mods."),
+			new PageOption("Mod Options", "Mod Options", "Configure options for installed mods\nand customize mod-specific settings."),
 			#end
-			new PageOption("Developer Options", "Developer Options", "Change options for developing mods.")
+			new PageOption("Developer Options", "Developer Options", "Advanced settings for developers.\nTools and options for mod development.")
 		],
 		"Gameplay" => [
 			new PageOption("Back", "Categories", "Go back to the main menu."),
@@ -46,8 +46,8 @@ class OptionsMenu extends MusicBeatState {
 		"Graphics" => [
 			new PageOption("Back", "Categories", "Go back to the main menu."),
 			new PageOption("Note Options", "Note Options", "Change note-related options."),
-			new PageOption("Info Display", "Info Display", "Change optiosn related to the info display.\n(FPS counter, memory display, etc)."),
-			new PageOption("Optimizations", "Optimizations", "Change optimization options, such as anitaliasing."),
+			new PageOption("Info Display", "Info Display", "Configure options related to the info display.\n(FPS counter, memory display, etc)."),
+			new PageOption("Optimizations", "Optimizations", "Configure performance optimization options.\nAdjust graphics quality and resource usage."),
 			new GameSubStateOption("Max FPS", substates.MaxFPSMenu, "Change the maximum framerate."),
 			new BoolOption("VSync", "vSync", "Toggle VSync."),
 			new BoolOption("Bigger Score Text", "biggerScoreInfo", "When toggled, the score text will have a larger font."),
@@ -78,6 +78,7 @@ class OptionsMenu extends MusicBeatState {
 			#end
 			new BoolOption("Show Score", "showScore", "Shows the current score."),
 			new BoolOption("Dinnerbone Mode", "dinnerbone", "Dinnerbone mode."),
+			new BoolOption("Window Name Uses Mod", "windowNameUsesMod", "When toggled, the window title will display the current mod name."),
 			new GameSubStateOption("Import Old Scores", substates.ImportHighscoresSubstate, "Import scores from legacy leather engine versions.")
 		],
 		"Optimizations" => [

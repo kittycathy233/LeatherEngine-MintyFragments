@@ -8,6 +8,7 @@ import game.Conductor;
 import utilities.PlayerSettings;
 import game.Conductor.BPMChangeEvent;
 import utilities.Controls;
+import utilities.Options;
 import flixel.FlxG;
 
 /**
@@ -151,6 +152,10 @@ class MusicBeatState extends #if MODCHARTING_TOOLS modcharting.ModchartMusicBeat
 
 	@:noCompletion
 	inline static function _refreshWindowName():Void {
-		FlxG.stage.window.title = windowNamePrefix + windowNameSuffix #if debug + ' (DEBUG)' #end;
+		var finalPrefix:String = windowNamePrefix;
+		if (!Options.getData("windowNameUsesMod")) {
+			finalPrefix = "Leather Engine";
+		}
+		FlxG.stage.window.title = finalPrefix + windowNameSuffix #if debug + ' (DEBUG)' #end;
 	}
 }

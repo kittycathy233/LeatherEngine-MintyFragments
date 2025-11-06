@@ -352,6 +352,10 @@
 		{
 			"option": "autoOpenCharter",
 			"value": false
+		},
+		{
+			"option": "windowNameUsesMod",
+			"value": true
 		}
 	]
 }

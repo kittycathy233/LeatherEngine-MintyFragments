@@ -305,7 +305,11 @@ class ChangeModOption extends FlxSpriteContainer {
 				}
 				FlxG.sound.play(Paths.sound('confirmMenu'), 1);
 				CoolUtil.setWindowIcon("mods/" + Options.getData("curMod") + "/_polymod_icon.png");
-				MusicBeatState.windowNamePrefix = Options.getData("curMod");
+				if (Options.getData("windowNameUsesMod")) {
+					MusicBeatState.windowNamePrefix = Options.getData("curMod");
+				} else {
+					MusicBeatState.windowNamePrefix = "Leather Engine";
+				}
 				PolymodHandler.loadMods();
 				NoteVariables.init();
 				Options.fixBinds();

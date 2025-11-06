@@ -90,7 +90,11 @@ class TitleState extends MusicBeatState {
 			#if MODDING_ALLOWED
 			ModList.load();
 			PolymodHandler.loadMods();
-			MusicBeatState.windowNamePrefix = Options.getData("curMod");
+			if (Options.getData("windowNameUsesMod")) {
+				MusicBeatState.windowNamePrefix = Options.getData("curMod");
+			} else {
+				MusicBeatState.windowNamePrefix = "Leather Engine";
+			}
 			CoolUtil.setWindowIcon("mods/" + Options.getData("curMod") + "/_polymod_icon.png");
 			Options.initModOptions();
 			#end
