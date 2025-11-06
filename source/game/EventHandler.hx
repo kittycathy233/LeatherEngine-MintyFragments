@@ -11,6 +11,7 @@ import game.Conductor;
 import game.StageGroup;
 import game.Character;
 import flixel.util.FlxColor;
+import flixel.util.FlxTimer;
 
 class EventHandler {
 	public static function processEvent(game:PlayState, event:Array<Dynamic>) {
@@ -238,145 +239,65 @@ class EventHandler {
 				if (newKeyCount < 1 || Math.isNaN(newKeyCount))
 					newKeyCount = 1;
 
-				PlayState.SONG.keyCount = newKeyCount;
-				PlayState.SONG.playerKeyCount = newPlayerKeyCount;
-				PlayState.playerStrums.clear();
-				PlayState.enemyStrums.clear();
-				PlayState.strumLineNotes.clear();
+				// 延迟处理，避免在主线程中一次性执行过多操作
+				FlxTimer.wait(0.001, function() {
+					PlayState.SONG.keyCount = newKeyCount;
+					PlayState.SONG.playerKeyCount = newPlayerKeyCount;
+					
+					// 使用批处理方式清除对象
+					clearAllStrumsAndSplashes();
 
-				#if MODCHARTING_TOOLS
-				if (game.playfieldRenderer != null) {
-					game.playfieldRenderer = new modcharting.PlayfieldRenderer(PlayState.strumLineNotes, game.notes, game);
-				}
-				#end
-
-				game.splash_group.clear();
-				game.binds = Options.getData("binds", "binds")[PlayState.SONG.playerKeyCount - 1];
-				if (Options.getData("middlescroll")) {
-					game.generateStaticArrows(50, false);
-					game.generateStaticArrows(0.5, true);
-				} else {
-					if (PlayState.characterPlayingAs == 0) {
-						game.generateStaticArrows(0, false);
-						game.generateStaticArrows(1, true);
-					} else {
-						game.generateStaticArrows(1, false);
-						game.generateStaticArrows(0, true);
+					game.binds = Options.getData("binds", "binds")[PlayState.SONG.playerKeyCount - 1];
+					
+					// 分批生成箭头，避免一次性创建过多对象
+					generateArrowsInBatches(game);
+					
+					#if MODCHARTING_TOOLS
+					if (game.playfieldRenderer != null) {
+						game.playfieldRenderer = new modcharting.PlayfieldRenderer(PlayState.strumLineNotes, game.notes, game);
 					}
-				}
-				#if MODCHARTING_TOOLS
-				modcharting.NoteMovement.getDefaultStrumPos(game);
-				#end
-				#if LUA_ALLOWED
-				game.set("playerKeyCount", newPlayerKeyCount);
-				game.set("keyCount", newKeyCount);
-				for (i in 0...PlayState.strumLineNotes.length) {
-					var member = PlayState.strumLineNotes.members[i];
-
-					game.set("defaultStrum" + i + "X", member.x);
-					game.set("defaultStrum" + i + "Y", member.y);
-					game.set("defaultStrum" + i + "Angle", member.angle);
-
-					game.set("defaultStrum" + i, {
-						x: member.x,
-						y: member.y,
-						angle: member.angle,
+					modcharting.NoteMovement.getDefaultStrumPos(game);
+					#end
+					
+					// 延迟设置Lua变量，避免音频干扰
+					FlxTimer.wait(0.002, function() {
+						#if LUA_ALLOWED
+						setLuaVariablesInBatches(game, newPlayerKeyCount, newKeyCount);
+						#end
 					});
-
-					if (PlayState.enemyStrums.members.contains(member)) {
-						game.set("enemyStrum" + i % PlayState.SONG.keyCount, {
-							x: member.x,
-							y: member.y,
-							angle: member.angle,
-						});
-					} else {
-						game.set("playerStrum" + i % PlayState.SONG.playerKeyCount, {
-							x: member.x,
-							y: member.y,
-							angle: member.angle,
-						});
-					}
-				}
-				#end
+				});
 			case "change ui skin":
 				var noteskin:String = Std.string(event[2]);
 				PlayState.SONG.ui_Skin = noteskin;
 				game.setupUISkinConfigs(noteskin);
 				game.timeBar = new TimeBar(PlayState.SONG, PlayState.storyDifficultyStr);
 
-				PlayState.playerStrums.clear();
-				PlayState.enemyStrums.clear();
-				PlayState.strumLineNotes.clear();
-				game.splash_group.clear();
-				if (Options.getData("middlescroll")) {
-					game.generateStaticArrows(50, false, false);
-					game.generateStaticArrows(0.5, true, false);
-				} else {
-					if (PlayState.characterPlayingAs == 0) {
-						game.generateStaticArrows(0, false, false);
-						game.generateStaticArrows(1, true, false);
+				// 延迟处理，避免在主线程中一次性执行过多操作
+				FlxTimer.wait(0.001, function() {
+					clearAllStrumsAndSplashes();
+					
+					if (Options.getData("middlescroll")) {
+						game.generateStaticArrows(50, false, false);
+						FlxTimer.wait(0.001, function() {
+							game.generateStaticArrows(0.5, true, false);
+						});
 					} else {
-						game.generateStaticArrows(1, false, false);
-						game.generateStaticArrows(0, true, false);
+						if (PlayState.characterPlayingAs == 0) {
+							game.generateStaticArrows(0, false, false);
+							FlxTimer.wait(0.001, function() {
+								game.generateStaticArrows(1, true, false);
+							});
+						} else {
+							game.generateStaticArrows(1, false, false);
+							FlxTimer.wait(0.001, function() {
+								game.generateStaticArrows(0, true, false);
+							});
+						}
 					}
-				}
-
-				for (note in game.notes.members) {
-					var oldAnim:String = note.animation.curAnim.name;
-					note.frames = Note.getFrames(note);
-
-					var lmaoStuff:Float = Std.parseFloat(game.ui_settings[0]) * (Std.parseFloat(game.ui_settings[2])
-						- (Std.parseFloat(game.mania_size[(note.mustPress ? PlayState.SONG.playerKeyCount : PlayState.SONG.keyCount) - 1])));
-
-					if (note.isSustainNote)
-						note.scale.set(lmaoStuff,
-							Std.parseFloat(game.ui_settings[0]) * (Std.parseFloat(game.ui_settings[2]) - (Std.parseFloat(game.mania_size[3]))));
-					else
-						note.scale.set(lmaoStuff, lmaoStuff);
-
-					note.updateHitbox();
-
-					note.antialiasing = game.ui_settings[3] == "true" && Options.getData("antialiasing");
-
-					var localKeyCount:Int = note.mustPress ? note.song.playerKeyCount : note.song.keyCount;
-
-					note.animation.addByPrefix("default", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + "0", 24);
-					note.animation.addByPrefix("hold", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + " hold0", 24);
-					note.animation.addByPrefix("holdend", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + " hold end0", 24);
-
-					note.shader = note.affectedbycolor ? note.colorSwap.shader : null;
-
-					note.animation.play(oldAnim);
-				}
-
-				for (note in game.unspawnNotes) {
-					var oldAnim:String = note.animation.curAnim.name;
-					note.frames = Note.getFrames(note);
-
-					var lmaoStuff:Float = Std.parseFloat(game.ui_settings[0]) * (Std.parseFloat(game.ui_settings[2])
-						- (Std.parseFloat(game.mania_size[(note.mustPress ? PlayState.SONG.playerKeyCount : PlayState.SONG.keyCount) - 1])));
-
-					if (note.isSustainNote)
-						note.scale.set(lmaoStuff,
-							Std.parseFloat(game.ui_settings[0]) * (Std.parseFloat(game.ui_settings[2]) - (Std.parseFloat(game.mania_size[3]))));
-					else
-						note.scale.set(lmaoStuff, lmaoStuff);
-
-					note.updateHitbox();
-
-					note.antialiasing = game.ui_settings[3] == "true" && Options.getData("antialiasing");
-
-					var localKeyCount:Int = note.mustPress ? note.song.playerKeyCount : note.song.keyCount;
-
-					note.animation.addByPrefix("default", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + "0", 24);
-					note.animation.addByPrefix("hold", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + " hold0", 24);
-					note.animation.addByPrefix("holdend", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + " hold end0", 24);
-
-					note.shader = note.affectedbycolor ? note.colorSwap.shader : null;
-
-					note.animation.play(oldAnim);
-				}
-				game.set_speed(game.speed);
+					
+					// 分批更新音符，避免音频卡顿
+					updateNotesInBatches(game);
+				});
 			// FNFC stuff
 			case 'focuscamera':
 				switch (Std.string(event[2])) {
@@ -425,5 +346,162 @@ class EventHandler {
 					}
 				}
 		}
+	}
+	
+	/**
+	 * 批量清除所有strum和splash对象，避免音频卡顿
+	 */
+	private static function clearAllStrumsAndSplashes():Void {
+		PlayState.playerStrums.clear();
+		PlayState.enemyStrums.clear();
+		PlayState.strumLineNotes.clear();
+		PlayState.instance.splash_group.clear();
+	}
+	
+	/**
+	 * 分批生成箭头对象，避免一次性创建过多对象导致卡顿
+	 */
+	private static function generateArrowsInBatches(game:PlayState):Void {
+		if (Options.getData("middlescroll")) {
+			game.generateStaticArrows(50, false);
+			FlxTimer.wait(0.001, function() {
+				game.generateStaticArrows(0.5, true);
+			});
+		} else {
+			if (PlayState.characterPlayingAs == 0) {
+				game.generateStaticArrows(0, false);
+				FlxTimer.wait(0.001, function() {
+					game.generateStaticArrows(1, true);
+				});
+			} else {
+				game.generateStaticArrows(1, false);
+				FlxTimer.wait(0.001, function() {
+					game.generateStaticArrows(0, true);
+				});
+			}
+		}
+	}
+	
+	/**
+	 * 分批更新音符UI皮肤，避免一次性更新过多对象导致音频卡顿
+	 */
+	private static function updateNotesInBatches(game:PlayState):Void {
+		// 分批处理已生成音符
+		var batchSize = 8; // 每批处理8个音符
+		var totalNoteCount = game.notes.members.length;
+		
+		for (batchStart in 0...totalNoteCount) {
+			var batchEnd = Std.int(Math.min(batchStart + batchSize, totalNoteCount));
+			
+			FlxTimer.wait(0.001 * batchStart, function() {
+				for (i in batchStart...batchEnd) {
+					var note = game.notes.members[i];
+					if (note != null) {
+						updateSingleNote(note, game);
+					}
+				}
+			});
+		}
+		
+		// 分批处理未生成音符
+		var totalUnspawnCount = game.unspawnNotes.length;
+		
+		for (batchStart in 0...totalUnspawnCount) {
+			var batchEnd = Std.int(Math.min(batchStart + batchSize, totalUnspawnCount));
+			
+			FlxTimer.wait(0.001 * (batchStart + totalNoteCount), function() {
+				for (i in batchStart...batchEnd) {
+					var note = game.unspawnNotes[i];
+					if (note != null) {
+						updateSingleNote(note, game);
+					}
+				}
+				
+				// 最后设置游戏速度
+				if (batchEnd == totalUnspawnCount) {
+					game.set_speed(game.speed);
+				}
+			});
+		}
+	}
+	
+	/**
+	 * 更新单个音符的UI设置
+	 */
+	private static function updateSingleNote(note:Note, game:PlayState):Void {
+		var oldAnim:String = note.animation.curAnim.name;
+		note.frames = Note.getFrames(note);
+
+		var lmaoStuff:Float = Std.parseFloat(game.ui_settings[0]) * (Std.parseFloat(game.ui_settings[2])
+			- (Std.parseFloat(game.mania_size[(note.mustPress ? PlayState.SONG.playerKeyCount : PlayState.SONG.keyCount) - 1])));
+
+		if (note.isSustainNote)
+			note.scale.set(lmaoStuff,
+				Std.parseFloat(game.ui_settings[0]) * (Std.parseFloat(game.ui_settings[2]) - (Std.parseFloat(game.mania_size[3]))));
+		else
+			note.scale.set(lmaoStuff, lmaoStuff);
+
+		note.updateHitbox();
+
+		note.antialiasing = game.ui_settings[3] == "true" && Options.getData("antialiasing");
+
+		var localKeyCount:Int = note.mustPress ? note.song.playerKeyCount : note.song.keyCount;
+
+		note.animation.addByPrefix("default", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + "0", 24);
+		note.animation.addByPrefix("hold", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + " hold0", 24);
+		note.animation.addByPrefix("holdend", NoteVariables.animationDirections[localKeyCount - 1][note.noteData] + " hold end0", 24);
+
+		note.shader = note.affectedbycolor ? note.colorSwap.shader : null;
+
+		note.animation.play(oldAnim);
+	}
+	
+	/**
+	 * 分批设置Lua变量，避免密集的Lua操作导致音频卡顿
+	 */
+	private static function setLuaVariablesInBatches(game:PlayState, newPlayerKeyCount:Int, newKeyCount:Int):Void {
+		#if LUA_ALLOWED
+		game.set("playerKeyCount", newPlayerKeyCount);
+		game.set("keyCount", newKeyCount);
+		
+		// 分批设置strum变量，避免一次性设置过多
+		var batchSize = 4; // 每批处理4个strum
+		var totalStrumCount = PlayState.strumLineNotes.length;
+		
+		for (batchStart in 0...totalStrumCount) {
+			var batchEnd = Std.int(Math.min(batchStart + batchSize, totalStrumCount));
+			
+			FlxTimer.wait(0.001 * batchStart, function() {
+				for (i in batchStart...batchEnd) {
+					var member = PlayState.strumLineNotes.members[i];
+					if (member != null) {
+						game.set("defaultStrum" + i + "X", member.x);
+						game.set("defaultStrum" + i + "Y", member.y);
+						game.set("defaultStrum" + i + "Angle", member.angle);
+
+						game.set("defaultStrum" + i, {
+							x: member.x,
+							y: member.y,
+							angle: member.angle,
+						});
+
+						if (PlayState.enemyStrums.members.contains(member)) {
+							game.set("enemyStrum" + i % PlayState.SONG.keyCount, {
+								x: member.x,
+								y: member.y,
+								angle: member.angle,
+							});
+						} else {
+							game.set("playerStrum" + i % PlayState.SONG.playerKeyCount, {
+								x: member.x,
+								y: member.y,
+								angle: member.angle,
+							});
+						}
+					}
+				}
+			});
+		}
+		#end
 	}
 }
