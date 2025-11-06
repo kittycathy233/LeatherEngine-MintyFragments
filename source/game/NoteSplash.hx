@@ -71,8 +71,8 @@ class NoteSplash extends FlxSprite {
 
 	override function update(elapsed:Float) {
 		if (target != null) {
-			x = target.x - (target.width / 1.5);
-			y = target.y - (target.height / 1.5);
+			x = target.x - (width - target.width) / 2;
+			y = target.y - (height - target.height) / 2;
 			color = target.color;
 			flipX = target.flipX;
 			flipY = target.flipY;
