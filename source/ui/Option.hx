@@ -508,3 +508,20 @@ class OpenUrlOption extends Option {
 		}
 	}
 }
+
+/**
+ * Disabled option that cannot be interacted with and appears grayed out
+ */
+class DisabledOption extends Option {
+	public function new(optionName:String, optionDescription:String = "") {
+		super(optionName, null, optionDescription);
+		
+		// Set gray color to indicate disabled state
+		alphabetText.color = 0xFF808080; // Gray color
+	}
+
+	override function update(elapsed:Float) {
+		super.update(elapsed);
+		// No interaction - override update to prevent any functionality
+	}
+}

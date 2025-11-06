@@ -326,33 +326,39 @@ class TitleState extends MusicBeatState {
 
 			call("checkForUpdate");
 			#if CHECK_FOR_UPDATES
-			if (Options.getData("checkForUpdates")) {
-				trace("Checking for updates...");
-				new FlxTimer().start(2, (tmr:FlxTimer) -> {
-					var http:Http = new Http("https://raw.githubusercontent.com/Vortex2Oblivion/LeatherEngine/refs/heads/main/version.txt");
-					http.onData = (data:String) -> {
-						data = 'v' + data;
-						if (CoolUtil.getCurrentVersion() != data) {
-							trace('Outdated Version Detected! ' + data.trim() + ' != ' + CoolUtil.getCurrentVersion(), WARNING);
-							Main.display.version += ' - UPDATE AVALIABLE (${data.trim()})';
-							FlxG.switchState(() -> new OutdatedSubState(data.trim()));
-						} else {
-							FlxG.switchState(() -> new MainMenuState());
-						}
-					}
+			// Update checking has been disabled - temporarily commented out
+			// if (Options.getData("checkForUpdates")) {
+			// 	trace("Checking for updates...");
+			// 	new FlxTimer().start(2, (tmr:FlxTimer) -> {
+			// 		var http:Http = new Http("https://raw.githubusercontent.com/Vortex2Oblivion/LeatherEngine/refs/heads/main/version.txt");
+			// 		http.onData = (data:String) -> {
+			// 			data = 'v' + data;
+			// 			if (CoolUtil.getCurrentVersion() != data) {
+			// 				trace('Outdated Version Detected! ' + data.trim() + ' != ' + CoolUtil.getCurrentVersion(), WARNING);
+			// 				Main.display.version += ' - UPDATE AVALIABLE (${data.trim()})';
+			// 				FlxG.switchState(() -> new OutdatedSubState(data.trim()));
+			// 			} else {
+			// 				FlxG.switchState(() -> new MainMenuState());
+			// 			}
+			// 		}
 
-					http.onError = (error:String) -> {
-						trace(error, ERROR);
-						FlxG.switchState(() -> new MainMenuState()); // fail so we go anyway
-					}
+			// 		http.onError = (error:String) -> {
+			// 			trace(error, ERROR);
+			// 			FlxG.switchState(() -> new MainMenuState()); // fail so we go anyway
+			// 		}
 
-					http.request();
-				});
-			} else {
-				new FlxTimer().start(2, (tmr:FlxTimer) -> {
-					FlxG.switchState(() -> new MainMenuState());
-				});
-			}
+			// 		http.request();
+			// 	});
+			// } else {
+			// 	new FlxTimer().start(2, (tmr:FlxTimer) -> {
+			// 		FlxG.switchState(() -> new MainMenuState());
+			// 	});
+			// }
+			
+			// Temporary disabled code - always proceed to main menu
+			new FlxTimer().start(2, (tmr:FlxTimer) -> {
+				FlxG.switchState(() -> new MainMenuState());
+			});
 			#else
 			new FlxTimer().start(2, (tmr:FlxTimer) -> {
 				FlxG.switchState(() -> new MainMenuState());
