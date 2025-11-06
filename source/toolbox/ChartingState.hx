@@ -258,8 +258,8 @@ class ChartingState extends MusicBeatState {
 		UI_box = new FlxUITabMenu(null, tabs, true);
 
 		UI_box.resize(300, 400);
-		UI_box.x = 0;
-		UI_box.y = 100;
+		UI_box.x = 10;
+		UI_box.y = 50;
 		add(UI_box);
 
 		beatSnap = Conductor.stepsPerSection;
@@ -1404,7 +1404,7 @@ class ChartingState extends MusicBeatState {
 
 			if (FlxG.mouse.wheel != 0) {
 				if (control) {
-					cameraShitThing.x += FlxG.mouse.wheel * 5;
+					cameraShitThing.x += FlxG.mouse.wheel * 15;
 
 					/*if (cameraShitThing.x > gridBG.x + gridBG.width)
 							cameraShitThing.x = gridBG.x + gridBG.width;
@@ -1808,9 +1808,9 @@ class ChartingState extends MusicBeatState {
 					i[3] = 0;
 
 				var id:FlxText = new FlxText(Math.floor((daNoteInfo + 1) * GRID_SIZE), Math.floor(getYfromStrum((daStrumTime - sectionStartTime()))),
-					GRID_SIZE, Std.string(i[3]).replace("[", "").replace("]", ""), 16);
+					GRID_SIZE, Std.string(i[3]).replace("[", "").replace("]", ""), 12);
 				id.setBorderStyle(OUTLINE, FlxColor.BLACK, 1.5);
-				id.font = Paths.font("vcr.ttf");
+				//id.font = Paths.font("vcr.ttf");
 
 				var idIcon:FlxSprite = new FlxSprite(Math.floor((daNoteInfo + 1) * GRID_SIZE) - 16,
 					Math.floor(getYfromStrum((daStrumTime - sectionStartTime()))) - 12);
