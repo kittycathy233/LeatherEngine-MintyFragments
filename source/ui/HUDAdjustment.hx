@@ -337,7 +337,7 @@ class HUDAdjustment extends MusicBeatState {
 		var MA:Int = FlxG.random.int(1, 69);
 		var PA:Int = FlxG.random.int(1, 69);
 
-		return ((Options.getData("marvelousRatings") ? "Marvelous: " + Std.string(ratingArray[0]) + "\n" : "")
+		return ((Options.getData("marvelousRatings") ? "Marv: " + Std.string(ratingArray[0]) + "\n" : "")
 			+ "Sick: "
 			+ Std.string(ratingArray[1])
 			+ "\n"
