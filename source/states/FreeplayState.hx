@@ -16,6 +16,7 @@ import flixel.util.FlxTimer;
 import substates.ResetScoreSubstate;
 import flixel.sound.FlxSound;
 import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
 import game.SongLoader;
 import game.Highscore;
 import game.FreeplaySong;
@@ -66,6 +67,7 @@ class FreeplayState extends MusicBeatState {
 	public var vocals:FlxSound = new FlxSound();
 
 	public var canEnterSong:Bool = true;
+	public var isResettingScore:Bool = false; // 标志跟踪是否正在重置分数
 
 	// thx psych engine devs
 	public var colorTween:FlxTween;
@@ -137,16 +139,20 @@ class FreeplayState extends MusicBeatState {
 
 		scoreBG = new FlxSprite(scoreText.x - 6, 0).makeGraphic(1, 1, FlxColor.BLACK);
 		scoreBG.alpha = 0.6;
+		scoreBG.visible = false;
 
 		scoreText.setFormat(Paths.font("vcr.ttf"), 32, FlxColor.WHITE, RIGHT);
+		scoreText.visible = false;
 
 		diffText = new FlxText(FlxG.width, scoreText.y + 36, 0, "", 24);
 		diffText.font = scoreText.font;
 		diffText.alignment = RIGHT;
+		diffText.visible = false;
 
 		speedText = new FlxText(FlxG.width, diffText.y + 36, 0, "", 24);
 		speedText.font = scoreText.font;
 		speedText.alignment = RIGHT;
+		speedText.visible = false;
 
 		#if (target.threaded)
 		if (!Options.getData("loadAsynchronously") || !Options.getData("healthIcons")) {
@@ -213,24 +219,26 @@ class FreeplayState extends MusicBeatState {
 		if (songs.length != 0 && curSelected >= 0 && curSelected < songs.length) {
 			selectedColor = FlxColor.fromString(songs[curSelected].color);
 			bg.color = selectedColor;
+			changeSelection();
 		} else {
 			bg.color = 0xFF7C689E;
 		}
 
-		var textBG:FlxSprite = new FlxSprite(0, FlxG.height - 26).makeGraphic(FlxG.width, 26, FlxColor.BLACK);
-		textBG.alpha = 0.6;
-		add(textBG);
-
 		#if PRELOAD_ALL
-		var leText:String = "Press RESET to reset song score and rank ~ Press SPACE to play Song Audio ~ Shift + LEFT and RIGHT to change song speed";
+		var leText:String = "R: Reset Score\nSPACE: Play Song Audio\nShift + ←/→: Change Speed";
 		#else
-		var leText:String = "Press RESET to reset song score ~ Shift + LEFT and RIGHT to change song speed";
+		var leText:String = "R: Reset Score\nShift + ←/→: Change Speed";
 		#end
 
-		infoText = new FlxText(textBG.x - 1, textBG.y + 4, FlxG.width, leText, 18);
-		infoText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, CENTER);
+		infoText = new FlxText(5, FlxG.height - 60, 0, leText, 20);
+		infoText.setFormat(Paths.font("vcr.ttf"), 20, FlxColor.WHITE, LEFT);
+		infoText.y = FlxG.height - infoText.height;
 		infoText.scrollFactor.set();
-		infoText.screenCenter(X);
+		
+		infoBG = new FlxSprite(infoText.x - 8, infoText.y - 8).makeGraphic(Std.int(infoText.width + 15), Std.int(infoText.height + 15), FlxColor.BLACK);
+		infoBG.alpha = 0.3;
+		infoBG.scrollFactor.set();
+		add(infoBG);
 		add(infoText);
 
 		super.create();
@@ -240,6 +248,7 @@ class FreeplayState extends MusicBeatState {
 	public var mix:String = null;
 
 	public var infoText:FlxText;
+	public var infoBG:FlxSprite;
 
 	/*public function addSong(songName:String, weekNum:Int, songCharacter:String) {
 			call("addSong", [songName, weekNum, songCharacter]);
@@ -301,7 +310,7 @@ class FreeplayState extends MusicBeatState {
 		if (curSpeed < 0.25)
 			curSpeed = 0.25;
 
-		speedText.text = "Speed: " + curSpeed + " (R+SHIFT)";
+		speedText.text = "SPEED: " + curSpeed;
 		speedText.x = FlxG.width - speedText.width;
 
 		var leftP = controls.LEFT_P;
@@ -399,10 +408,10 @@ class FreeplayState extends MusicBeatState {
 			if (vocals != null && vocals.active && vocals.playing && !FlxG.keys.justPressed.ENTER)
 				vocals.pitch = curSpeed;
 
-			if (controls.RESET && !shift) {
-				openSubState(new ResetScoreSubstate(curSong.name, curDiffString));
-				changeSelection();
-			}
+		if (controls.RESET && !shift) {
+			isResettingScore = true; // 设置重置分数标志
+			openSubState(new ResetScoreSubstate(curSong.name, curDiffString));
+		}
 
 			if (FlxG.keys.justPressed.ENTER) {
 				playSong(curSong.name, curDiffString);
@@ -531,7 +540,17 @@ class FreeplayState extends MusicBeatState {
 	}
 
 	override function closeSubState() {
-		changeSelection();
+		if (!isResettingScore) {
+			changeSelection();
+		} else {
+			if (songs.length != 0) {
+				var curSong:FreeplaySong = songs[curSelected];
+				intendedScore = Highscore.getScore(curSong.name, curDiffString);
+				curRank = Highscore.getSongRank(curSong.name, curDiffString);
+				diffText.text = "< " + curDiffString + " ~ " + curRank + " >";
+			}
+			isResettingScore = false;
+		}
 		FlxG.mouse.visible = false;
 		super.closeSubState();
 	}
@@ -570,7 +589,21 @@ class FreeplayState extends MusicBeatState {
 
 		var curSong:FreeplaySong = songs[curSelected];
 
-		scoreBG.visible = scoreText.visible = diffText.visible = speedText.visible = (curSong?.menuConfig?.showStats) ?? true;
+		var showStats:Bool = (curSong?.menuConfig?.showStats) ?? true;
+		
+		if (showStats) {
+			var elements = [scoreBG, scoreText, diffText, speedText];
+			var alphas = [0.6, 1, 1, 1];
+			
+			for (i => element in elements) {
+				element.x = FlxG.width + 50;
+				element.alpha = 0;
+				element.visible = true;
+				FlxTween.tween(element, {x: FlxG.width - element.width - (i == 0 ? 6 : 0), alpha: alphas[i]}, 0.4, {ease: FlxEase.quadOut});
+			}
+		} else {
+			scoreBG.visible = scoreText.visible = diffText.visible = speedText.visible = false;
+		}
 
 		// Song Inst
 		if (Options.getData("freeplayMusic") && curSelected >= 0) {
@@ -583,9 +616,6 @@ class FreeplayState extends MusicBeatState {
 		if (songs.length != 0) {
 			intendedScore = Highscore.getScore(curSong.name, curDiffString);
 			curRank = Highscore.getSongRank(curSong.name, curDiffString);
-		}
-
-		if (songs.length != 0) {
 			curDiffArray = curSong.difficulties;
 			changeDiff();
 		}
@@ -595,12 +625,10 @@ class FreeplayState extends MusicBeatState {
 		if (iconArray.length > 0) {
 			for (icon in iconArray) {
 				icon.alpha = 0.6;
-
-				if (icon.animation.curAnim != null)
-					icon.animation.play("neutral");
+				if (icon.animation.curAnim != null) icon.animation.play("neutral");
 			}
 
-			if (iconArray != null && curSelected >= 0 && (curSelected <= iconArray.length) && iconArray.length != 0) {
+			if (curSelected >= 0 && curSelected < iconArray.length) {
 				var selectedIcon:HealthIcon = iconArray[curSelected];
 				selectedIcon.alpha = 1;
 				selectedIcon.animation.play("win");
