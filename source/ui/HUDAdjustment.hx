@@ -195,7 +195,15 @@ class HUDAdjustment extends MusicBeatState {
 
 		_accuracyText = new FlxText();
 		final ms:Float = FlxMath.roundDecimal(FlxG.random.float(-166, 166), 2);
-		_accuracyText.text = ms + " ms" + (Options.getData("botplay") ? " (BOT)" : "");
+		if (Options.getData("botplay")) {
+			if (Options.getData("realBotplayMs")) {
+				_accuracyText.text = ms + " ms (BOT)";
+			} else {
+				_accuracyText.text = "0 ms (BOT)";
+			}
+		} else {
+			_accuracyText.text = ms + " ms";
+		}
 		_accuracyText.borderStyle = FlxTextBorderStyle.OUTLINE_FAST;
 		_accuracyText.borderSize = 1;
 		_accuracyText.size = 24;
