@@ -37,6 +37,7 @@ class OptionsMenu extends MusicBeatState {
 			new BoolOption("Downscroll", "downscroll", "Toggle downscroll."),
 			new BoolOption("Middlescroll", "middlescroll", "Toggle middlescroll."),
 			new BoolOption("Bot", "botplay", "Toggle botplay for songs.\nUseful for showcasing hard charts."),
+			new BoolOption("Real Botplay Delay", "realBotplayMs", "When toggled, displays actual timing offset\nfor botplay instead of '0ms (BOT)'."),
 			new BoolOption("Quick Restart", "quickRestart", "When toggled, the game over animation will not play."),
 			new BoolOption("No Death", "noDeath", "When toggled, the player is unable to die."),
 			new BoolOption("Use Custom Scrollspeed", "useCustomScrollSpeed", "When toggled, a custom scroll speed will be used."),

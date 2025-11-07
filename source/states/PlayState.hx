@@ -2640,7 +2640,7 @@ class PlayState extends MusicBeatState {
 	function popUpScore(strumtime:Float, noteData:Int, ?setNoteDiff:Float):Void {
 		var noteDiff:Null<Float> = (strumtime - Conductor.songPosition);
 
-		if (Options.getData("botplay"))
+		if (Options.getData("botplay") && !Options.getData("realBotplayMs"))
 			noteDiff = 0;
 
 		noteDiff ??= setNoteDiff;
@@ -2728,7 +2728,15 @@ class PlayState extends MusicBeatState {
 		var noteMath:Float = FlxMath.roundDecimal(noteDiff, 2);
 
 		if (Options.getData("displayMs")) {
-			accuracyText.text = noteMath + " ms" + (Options.getData("botplay") ? " (BOT)" : "");
+			if (Options.getData("botplay")) {
+				if (Options.getData("realBotplayMs")) {
+					accuracyText.text = noteMath + " ms (BOT)";
+				} else {
+					accuracyText.text = "0ms (BOT)";
+				}
+			} else {
+				accuracyText.text = noteMath + " ms";
+			}
 			accuracyText.setPosition(initRatingX + Options.getData("accuracyTextOffset")[0], initRatingY + 100 + Options.getData("accuracyTextOffset")[1]);
 
 			if (Math.abs(noteMath) == noteMath)

@@ -356,6 +356,10 @@
 		{
 			"option": "windowNameUsesMod",
 			"value": true
+		},
+		{
+			"option": "realBotplayMs",
+			"value": false
 		}
 	]
 }
