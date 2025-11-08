@@ -297,8 +297,13 @@ class FreeplayState extends MusicBeatState {
 
 		scoreBG.x = funnyObject.x - 6;
 
-		if (Std.int(scoreBG.width) != Std.int(funnyObject.width + 6))
-			scoreBG.makeGraphic(Std.int(funnyObject.width + 6), 108, FlxColor.BLACK);
+		// 只在宽度确实需要改变时才重新生成背景，避免不必要的闪动
+		var targetWidth:Int = Std.int(funnyObject.width + 6);
+		if (Std.int(scoreBG.width) != targetWidth && scoreBG.visible) {
+			scoreBG.makeGraphic(targetWidth, 108, FlxColor.BLACK);
+			// 保持背景的x位置不变，只更新宽度
+			scoreBG.x = funnyObject.x - 6;
+		}
 
 		scoreText.x = FlxG.width - scoreText.width;
 		scoreText.text = "PERSONAL BEST:" + lerpScore;
@@ -594,12 +599,22 @@ class FreeplayState extends MusicBeatState {
 		if (showStats) {
 			var elements = [scoreBG, scoreText, diffText, speedText];
 			var alphas = [0.6, 1, 1, 1];
+			var targetXs = [FlxG.width - scoreBG.width - 6, FlxG.width - scoreText.width, FlxG.width - diffText.width, FlxG.width - speedText.width];
 			
 			for (i => element in elements) {
-				element.x = FlxG.width + 50;
-				element.alpha = 0;
 				element.visible = true;
-				FlxTween.tween(element, {x: FlxG.width - element.width - (i == 0 ? 6 : 0), alpha: alphas[i]}, 0.4, {ease: FlxEase.quadOut});
+				
+				// 只有在刚进入state时才有渐变动画，切换曲目时直接设置位置
+				if (change == 0) {
+					// 初次进入：使用渐变动画
+					element.x = FlxG.width + 50;
+					element.alpha = 0;
+					FlxTween.tween(element, {x: targetXs[i], alpha: alphas[i]}, 0.4, {ease: FlxEase.quadOut});
+				} else {
+					// 切换曲目：直接设置位置，无动画
+					element.x = targetXs[i];
+					element.alpha = alphas[i];
+				}
 			}
 		} else {
 			scoreBG.visible = scoreText.visible = diffText.visible = speedText.visible = false;
