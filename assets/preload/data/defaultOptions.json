@@ -360,6 +360,14 @@
 		{
 			"option": "realBotplayMs",
 			"value": false
+		},
+		{
+			"option": "customRatings",
+			"value": false
+		},
+		{
+			"option": "customRatingsOffset",
+			"value": [0, 0]
 		}
 	]
 }

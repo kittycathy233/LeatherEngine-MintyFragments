@@ -90,6 +90,7 @@ class OptionsMenu extends MusicBeatState {
 			new BoolOption("Health Icons", "healthIcons", "Toggles health icons."),
 			new BoolOption("Health Bar", "healthBar", "Toggles the health bar."),
 			new BoolOption("Ratings and Combo", "ratingsAndCombo", "When toggled, ratings and combo popups will be displayed."),
+			new BoolOption("Custom Ratings", "customRatings", "When toggled, additional custom ratings (ka11, ka22, etc.) will be displayed."),
 			new BoolOption("Chars And BGs", "charsAndBGs", "When not toggled, the game will\nhide characters and stages while ingame."),
 			new BoolOption("Menu Backgrounds", "menuBGs", "When not toggled, color rectangles will be\nloaded instead of the menu background image."),
 			new BoolOption("Optimized Characters", "optimizedChars",

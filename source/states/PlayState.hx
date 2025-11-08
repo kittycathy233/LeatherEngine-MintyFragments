@@ -2629,6 +2629,9 @@ class PlayState extends MusicBeatState {
 	var rating:FlxSprite = new FlxSprite();
 	var ratingTween:VarTween;
 
+	var customRating:FlxSprite = new FlxSprite();
+	var customRatingTween:VarTween;
+
 	var accuracyText:FlxText = new FlxText(0, 0, 0, "bruh", 24);
 	var accuracyTween:VarTween;
 
@@ -2747,17 +2750,52 @@ class PlayState extends MusicBeatState {
 			accuracyText.borderStyle = FlxTextBorderStyle.OUTLINE_FAST;
 			accuracyText.borderSize = 1;
 			accuracyText.font = Paths.font("vcr.ttf");
-
-			ratingsGroup.add(accuracyText);
 		}
 
-		ratingsGroup.add(rating);
+		if (Options.getData("customRatings")) {
+			var customRatingString:String = "";
+			var customRatingMap:Map<String, String> = [
+				"marvelous" => "natsu",
+				"sick" => "shiroko", 
+				"good" => "chise",
+				"bad" => "yuzu",
+				"shit" => "momoi"
+			];
+			
+			if (customRatingMap.exists(daRating)) {
+				customRatingString = customRatingMap.get(daRating);
+				
+				customRating.alpha = 1;
+				customRating.loadGraphic(uiMap.get(customRatingString), false, 0, 0, true, customRatingString);
+				
+			customRating.screenCenter();
+			var customRatingX:Float = customRating.x -= (Options.getData("middlescroll") ? 350 : (Options.getData("playAs") == 0 ? -150 : -300)) + 300;
+			var customRatingY:Float = customRating.y;
+				
+				customRating.x += Options.getData("customRatingsOffset")[0];
+				customRating.y += Options.getData("customRatingsOffset")[1];
+				
+				customRating.velocity.y = FlxG.random.int(30, 60);
+				customRating.velocity.x = FlxG.random.int(-10, 10);
+				
+			ratingsGroup.add(customRating);
+			
+			customRating.setGraphicSize(customRating.width * Std.parseFloat(ui_settings[0]) * Std.parseFloat(ui_settings[4]));
+			customRating.antialiasing = ui_settings[3] == "true" && Options.getData("antialiasing");
+			customRating.updateHitbox();
+		}
+	}
 
-		rating.setGraphicSize(rating.width * Std.parseFloat(ui_settings[0]) * Std.parseFloat(ui_settings[4]));
-		rating.antialiasing = ui_settings[3] == "true" && Options.getData("antialiasing");
-		rating.updateHitbox();
+	ratingsGroup.add(rating);
+	
+	rating.setGraphicSize(rating.width * Std.parseFloat(ui_settings[0]) * Std.parseFloat(ui_settings[4]));
+	rating.antialiasing = ui_settings[3] == "true" && Options.getData("antialiasing");
+	rating.updateHitbox();
 
-		var seperatedScore:Array<Int> = [];
+	if (Options.getData("displayMs"))
+		ratingsGroup.add(accuracyText);
+
+	var seperatedScore:Array<Int> = [];
 
 		for (i in 0...Std.string(combo).length) {
 			seperatedScore.push(Std.parseInt(Std.string(combo).split("")[i]));
@@ -2821,6 +2859,22 @@ class PlayState extends MusicBeatState {
 			ratingTween = FlxTween.tween(rating, {alpha: 0}, 0.2, {
 				startDelay: Conductor.crochet * 0.001
 			});
+		}
+
+		if (Options.getData("customRatings")) {
+			if (customRatingTween == null) {
+				customRatingTween = FlxTween.tween(customRating, {alpha: 0}, 0.2, {
+					startDelay: Conductor.crochet * 0.001
+				});
+			} else {
+				customRating.alpha = 1;
+
+				customRatingTween.cancel();
+
+				customRatingTween = FlxTween.tween(customRating, {alpha: 0}, 0.2, {
+					startDelay: Conductor.crochet * 0.001
+				});
+			}
 		}
 
 		if (Options.getData("displayMs")) {
@@ -3462,7 +3516,7 @@ class PlayState extends MusicBeatState {
 		var MA:Int = ratingArray[1] + ratingArray[2] + ratingArray[3] + ratingArray[4];
 		var PA:Int = MA - ratingArray[1];
 
-		return ((marvelousRatings ? "Marvelous: " + Std.string(ratingArray[0]) + "\n" : "")
+		return ((marvelousRatings ? "Marv: " + Std.string(ratingArray[0]) + "\n" : "")
 			+ "Sick: "
 			+ Std.string(ratingArray[1])
 			+ "\n"
@@ -4002,6 +4056,11 @@ class PlayState extends MusicBeatState {
 		// preload ratings
 		for (rating in ['marvelous', 'sick', 'good', 'bad', 'shit']) {
 			uiMap.set(rating, Paths.gpuBitmap('$uiSkinImagePath/ratings/$rating'));
+		}
+		// preload custom ratings
+		var customRatings = ['natsu', 'shiroko', 'chise', 'yuzu', 'momoi'];
+		for (customRating in customRatings) {
+			uiMap.set(customRating, Paths.gpuBitmap('$uiSkinImagePath/ratings/$customRating'));
 		}
 		// preload numbers
 		for (i in 0...10)

@@ -58,6 +58,8 @@ class HUDAdjustment extends MusicBeatState {
 
 	public var rating:FlxExtendedMouseSprite;
 
+	public var customRating:FlxExtendedMouseSprite;
+
 	public var accuracyText:FlxExtendedMouseSprite;
 
 	public var combo:FlxExtendedMouseSprite;
@@ -71,6 +73,10 @@ class HUDAdjustment extends MusicBeatState {
 	public var initRatingX:Float = 0;
 
 	public var initRatingY:Float = 0;
+
+	public var initCustomRatingX:Float = 0;
+
+	public var initCustomRatingY:Float = 0;
 
 	public var initAccuracyTextX:Float = 0;
 
@@ -181,12 +187,23 @@ class HUDAdjustment extends MusicBeatState {
 		initRatingX = rating.x -= (Options.getData("middlescroll") ? 350 : (Options.getData("playAs") == 0 ? 0 : -150));
 		initRatingY = rating.y -= 60;
 		rating.camera = hud;
-		rating.setGraphicSize(rating.width * Std.parseFloat(uiSettings[0]) * Std.parseFloat(uiSettings[4]));
-		rating.antialiasing = uiSettings[3] == "true";
-		rating.updateHitbox();
-		rating.draggable = true;
+			rating.setGraphicSize(rating.width * Std.parseFloat(uiSettings[0]) * Std.parseFloat(uiSettings[4]));
+			rating.antialiasing = uiSettings[3] == "true";
+			rating.updateHitbox();
+			rating.draggable = true;
 
-		accuracyText = new FlxExtendedMouseSprite();
+			customRating = new FlxExtendedMouseSprite();
+			customRating.loadGraphic((Paths.gpuBitmap("ui skins/" + Options.getData("uiSkin") + "/ratings/natsu")));
+			customRating.screenCenter();
+			initCustomRatingX = customRating.x -= (Options.getData("middlescroll") ? 350 : (Options.getData("playAs") == 0 ? -150 : -300)) + 300;
+			initCustomRatingY = customRating.y;
+			customRating.camera = hud;
+			customRating.setGraphicSize(customRating.width * Std.parseFloat(uiSettings[0]) * Std.parseFloat(uiSettings[4]));
+			customRating.antialiasing = uiSettings[3] == "true";
+			customRating.updateHitbox();
+			customRating.draggable = true;
+
+			accuracyText = new FlxExtendedMouseSprite();
 		accuracyText.x = initAccuracyTextX = initRatingX;
 		accuracyText.y = initAccuracyTextY = initRatingY + 100;
 		accuracyText.camera = hud;
@@ -230,16 +247,19 @@ class HUDAdjustment extends MusicBeatState {
 		combo.updateHitbox();
 		combo.draggable = true;
 
-		rating.x += Options.getData("ratingsOffset")[0];
-		rating.y += Options.getData("ratingsOffset")[1];
-		accuracyText.x += Options.getData("accuracyTextOffset")[0];
-		accuracyText.y += Options.getData("accuracyTextOffset")[1];
-		combo.x += Options.getData("comboOffset")[0];
-		combo.y += Options.getData("comboOffset")[1];
+			rating.x += Options.getData("ratingsOffset")[0];
+			rating.y += Options.getData("ratingsOffset")[1];
+			customRating.x += Options.getData("customRatingsOffset")[0];
+			customRating.y += Options.getData("customRatingsOffset")[1];
+			accuracyText.x += Options.getData("accuracyTextOffset")[0];
+			accuracyText.y += Options.getData("accuracyTextOffset")[1];
+			combo.x += Options.getData("comboOffset")[0];
+			combo.y += Options.getData("comboOffset")[1];
 
-		add(rating);
-		add(accuracyText);
-		add(combo);
+			add(customRating);
+			add(rating);
+			add(accuracyText);
+			add(combo);
 
 		strums = new FlxTypedGroup<StrumNote>();
 		strums.camera = hud;
@@ -376,6 +396,7 @@ class HUDAdjustment extends MusicBeatState {
 
 		if (FlxG.keys.justPressed.ESCAPE) {
 			Options.setData([Math.round(rating.x - initRatingX), Math.round(rating.y - initRatingY)], "ratingsOffset");
+			Options.setData([Math.round(customRating.x - initCustomRatingX), Math.round(customRating.y - initCustomRatingY)], "customRatingsOffset");
 			Options.setData([
 				Math.round(accuracyText.x - initAccuracyTextX),
 				Math.round(accuracyText.y - initAccuracyTextY)
@@ -390,6 +411,7 @@ class HUDAdjustment extends MusicBeatState {
 		}
 		if (FlxG.keys.justPressed.SPACE) {
 			Options.setData([0, 0], "ratingsOffset");
+			Options.setData([0, 0], "customRatingsOffset");
 			Options.setData([0, 0], "accuracyTextOffset");
 			Options.setData([0, 0], "comboOffset");
 			Options.setData([0, 0], "ratingTextOffset");
@@ -416,6 +438,7 @@ class HUDAdjustment extends MusicBeatState {
 		ratingText.update(elapsed);
 
 		offsets.text = 'Rating offset: ${[Math.round(rating.x - initRatingX), Math.round(rating.y - initRatingY)]}\n'
+			+ 'Custom Rating offset: ${[Math.round(customRating.x - initCustomRatingX), Math.round(customRating.y - initCustomRatingY)]}\n'
 			+ 'Accuracy offset: ${[Math.round(accuracyText.x - initAccuracyTextX), Math.round(accuracyText.y - initAccuracyTextY)]}\n'
 			+ 'Combo offset: ${[Math.round(combo.x - initComboX), Math.round(combo.y - initComboY)]}\n'
 			+ 'Info Text offset: ${[Math.round(_ratingText.x - initRatingTextX), Math.round(_ratingText.y - initRatingTextY)]}';
