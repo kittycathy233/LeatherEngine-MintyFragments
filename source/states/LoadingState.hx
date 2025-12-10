@@ -7,6 +7,12 @@ import flixel.FlxState;
 import flixel.FlxSprite;
 import flixel.util.typeLimit.NextState;
 import flixel.util.FlxTimer;
+import flixel.text.FlxText;
+import flixel.math.FlxMath;
+import flixel.ui.FlxBar;
+import flixel.addons.transition.FlxTransitionableState;
+import flixel.util.FlxColor;
+import flixel.sound.FlxSound;
 
 import openfl.utils.Assets;
 import lime.utils.Assets as LimeAssets;
@@ -14,6 +20,245 @@ import lime.utils.AssetLibrary;
 import lime.utils.AssetManifest;
 
 import haxe.io.Path;
+#if sys
+import sys.FileSystem;
+#end
+import haxe.Json;
+import game.Character;
+import game.StageGroup;
+import game.StrumNote;
+import game.SongLoader;
+
+class AsyncAssetPreloader
+{
+	var uiSkins:Array<String> = [];
+	var characters:Array<String> = [];
+	var stages:Array<String> = [];
+	var audio:Array<String> = [];
+
+	var onComplete:Void->Void = null;
+
+	public var percent(get, default):Float = 0;
+	private function get_percent()
+	{
+		if (totalLoadCount > 0)
+		{
+			percent = loadedCount/totalLoadCount;
+		}
+
+		return percent;
+	}
+	public var totalLoadCount:Int = 0;
+	public var loadedCount:Int = 0;
+
+	public function new(onComplete:Void->Void)
+	{
+		this.onComplete = onComplete;
+		generatePreloadList();
+	}
+
+	private function generatePreloadList()
+	{
+		// 安全检查：如果 PlayState.SONG 为 null，使用默认值
+		if (PlayState.SONG == null) {
+			trace("Warning: PlayState.SONG is null in AsyncAssetPreloader, using default values");
+			uiSkins.push("default");
+			stages.push("stage");
+			characters.push("bf");
+			characters.push("dad");
+			characters.push("gf");
+			return;
+		}
+
+		var uiSkin:String = PlayState.SONG.ui_Skin;
+		if(Std.string(uiSkin) == "null")
+			uiSkin = "default";
+		if(uiSkin == "default")
+			uiSkin = utilities.Options.getData("uiSkin");
+
+		uiSkins.push(uiSkin);
+		stages.push(PlayState.SONG.stage);
+
+		characters.push(PlayState.SONG.player1);
+		characters.push(PlayState.SONG.player2);
+		characters.push(PlayState.SONG.gf);
+
+		audio.push(Paths.inst(PlayState.SONG.song, 
+			(PlayState.SONG.specialAudioName == null ? PlayState.storyDifficultyStr.toLowerCase() : PlayState.SONG.specialAudioName)));
+		audio.push(Paths.voices(PlayState.SONG.song, 
+			(PlayState.SONG.specialAudioName == null ? PlayState.storyDifficultyStr.toLowerCase() : PlayState.SONG.specialAudioName)));
+
+		var events:Array<Array<Dynamic>> = [];
+
+		if(PlayState.SONG.events != null && PlayState.SONG.events.length > 0)
+		{
+			for(event in PlayState.SONG.events)
+			{
+				events.push(event);
+			}
+		}
+
+		if(Assets.exists(Paths.songEvents(PlayState.SONG.song.toLowerCase(), PlayState.storyDifficultyStr.toLowerCase())))
+		{
+			var songData = Json.parse(Assets.getText(Paths.songEvents(PlayState.SONG.song.toLowerCase(), PlayState.storyDifficultyStr.toLowerCase())));
+			if (songData.events != null)
+			{
+				var eventFunnies:Array<Array<Dynamic>> = songData.events;
+				for(event in eventFunnies)
+				{
+					events.push(event);
+				}
+			}
+		}
+		if (events.length > 0)
+		{
+			events.sort(function(a, b){
+				if (a[1] < b[1])
+					return -1;
+				else if (a[1] > b[1])
+					return 1;
+				else
+					return 0;
+			});
+		}
+		for(event in events)
+		{
+			var eventStr:String = event[0].toLowerCase();
+			switch(eventStr)
+			{
+				case "change character": 
+					if (!characters.contains(event[2]))
+						characters.push(event[2]);
+				case "change stage":
+					if (!stages.contains(event[2]))
+						stages.push(event[2]);
+				case "change ui skin":
+					if (!uiSkins.contains(event[2]))
+						uiSkins.push(event[2]);
+			}
+		}
+
+		totalLoadCount = audio.length + characters.length + stages.length + uiSkins.length-1; //do -1 because it will be behind at the end when theres a small freeze
+	}
+
+	public function load(async:Bool = true)
+	{
+		if (async)
+		{
+			trace('loading async');
+
+		
+			var multi:Bool = false;
+
+			if (multi) //sometimes faster, sometimes slower, wont bother using it
+			{
+				setupFuture(function()
+				{
+					loadAudio();
+					return true;
+				});
+				setupFuture(function()
+				{
+					loadStages();
+					return true;
+				});
+				setupFuture(function()
+				{
+					loadCharacters();
+					return true;
+				});
+				setupFuture(function()
+				{
+					loadUISkins();
+					return true;
+				});
+			}
+			else 
+			{
+				setupFuture(function()
+				{
+					loadAudio();
+					loadCharacters();
+					loadStages();
+					loadUISkins();	
+					return true;
+				});
+			}
+
+
+		}
+		else 
+		{
+			loadAudio();
+			loadCharacters();
+			loadStages();
+			loadUISkins();	
+			finish();
+		}
+	}
+	function setupFuture(func:Void->Bool)
+	{
+		var fut:Future<Bool> = new Future(func, true);
+		fut.onComplete(function(ashgfjkasdfhkjl) {
+			finish();
+		});
+		fut.onError(function(_) {
+			finish(); //just continue anyway who cares
+		});
+		totalFinishes++;
+	}
+	var totalFinishes:Int = 0;
+	var finshCount:Int = 0;
+	private function finish()
+	{
+		finshCount++;
+		if (finshCount < totalFinishes)
+			return;
+
+		if (onComplete != null)
+			onComplete();
+	}
+	public function loadAudio()
+	{
+		for (i in audio)
+		{
+			loadedCount++;
+			new FlxSound().loadEmbedded(i);
+		}
+		trace('loaded audio');
+	}
+	public function loadCharacters()
+	{
+		if(!utilities.Options.getData("charsAndBGs"))
+			return;
+		for (i in characters)
+		{
+			loadedCount++;
+			new Character(0,0, i);
+		}
+		trace('loaded characters');
+	}
+	public function loadStages()
+	{
+		if(!utilities.Options.getData("charsAndBGs"))
+			return;
+		for (i in stages)
+		{
+			loadedCount++;
+			new StageGroup(i);
+		}
+		trace('loaded stages');
+	}
+	public function loadUISkins()
+	{
+		for (i in uiSkins)
+		{
+			loadedCount++;
+			new StrumNote(0, 0, 0, i);
+		}
+		trace('loaded UI Skins');
+	}
+}
 
 class LoadingState extends MusicBeatState
 {
@@ -28,6 +273,12 @@ class LoadingState extends MusicBeatState
 	var danceLeft = false;
 
 	public static var instance:LoadingState = null;
+
+	var loader:AsyncAssetPreloader = null;
+	var loadingBar:FlxBar;
+	var loadingText:FlxText;
+	var lerpedPercent:Float = 0;
+	var loadTime:Float = 0;
 	
 	function new(target:NextState, stopMusic:Bool)
 	{
@@ -42,6 +293,32 @@ class LoadingState extends MusicBeatState
 
 		instance = this;
 
+		#if PRELOAD_ALL
+		var loadingScreen = new FlxSprite(0, 0);
+		loadingScreen.makeGraphic(FlxG.width, FlxG.height, FlxColor.TRANSPARENT);
+		add(loadingScreen);
+
+		loader = new AsyncAssetPreloader(function()
+		{
+			FlxTransitionableState.skipNextTransOut = true;
+			trace("Load time: " + loadTime);
+			onLoad();
+		});
+		loader.load(true);
+
+		loadingBar = new FlxBar(0, FlxG.height-25, LEFT_TO_RIGHT, FlxG.width, 25, this,
+		'lerpedPercent', 0, 1);
+		loadingBar.scrollFactor.set();
+		loadingBar.createFilledBar(0xFF000000, 0x80FFFFFF); // 背景透明，前景50%透明度白色
+		loadingBar.alpha = 0.5; // 整体进度条50%透明度
+		add(loadingBar);
+
+		loadingText = new FlxText(2, FlxG.height-25-26, 0, "Loading...");
+		loadingText.setFormat(Paths.font("vcr.ttf"), 24, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+		loadingText.alpha = 0.5; // 文字50%透明度
+		add(loadingText);
+
+		#else 
 		logo = new FlxSprite(-150, -100);
 		logo.frames = Paths.getSparrowAtlas('title/logoBumpin');
 		logo.animation.addByPrefix('bump', 'logo bumpin', 24);
@@ -77,6 +354,7 @@ class LoadingState extends MusicBeatState
 				new FlxTimer().start(fadeTime + MIN_TIME, function(_) introComplete());
 			}
 		);
+		#end
 	}
 	
 	public function checkLoadSong(path:String)
@@ -120,18 +398,30 @@ class LoadingState extends MusicBeatState
 	{
 		super.beatHit();
 		
-		logo.animation.play('bump');
-		danceLeft = !danceLeft;
-		
-		if (danceLeft)
-			gfDance.animation.play('danceRight');
-		else
-			gfDance.animation.play('danceLeft');
+		#if NO_PRELOAD_ALL
+		if (logo != null)
+			logo.animation.play('bump');
+		if (gfDance != null) {
+			danceLeft = !danceLeft;
+			
+			if (danceLeft)
+				gfDance.animation.play('danceRight');
+			else
+				gfDance.animation.play('danceLeft');
+		}
+		#end
 	}
 	
 	override function update(elapsed:Float)
 	{
 		super.update(elapsed);
+		if (loader != null)
+		{
+			loadTime += elapsed;
+			lerpedPercent = FlxMath.lerp(lerpedPercent, loader.percent, elapsed*8);
+			if (loadingText != null)
+				loadingText.text = "Loading... (" + loader.loadedCount + "/" + (loader.totalLoadCount+1) + ")";
+		}
 		
 		#if debug
 		if (FlxG.keys.justPressed.SPACE)
@@ -175,10 +465,18 @@ class LoadingState extends MusicBeatState
 			return () -> new LoadingState(target, stopMusic);
 		#end
 
+		#if PRELOAD_ALL
+		// 在 PRELOAD_ALL 模式下总是显示新的加载画面
+		if (stopMusic && FlxG.sound.music != null)
+			FlxG.sound.music.stop();
+		
+		return new LoadingState(target, stopMusic);
+		#else
 		if (stopMusic && FlxG.sound.music != null)
 			FlxG.sound.music.stop();
 		
 		return target;
+		#end
 	}
 	
 	#if NO_PRELOAD_ALL

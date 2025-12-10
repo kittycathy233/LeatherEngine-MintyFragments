@@ -82,9 +82,6 @@ class SimpleInfoDisplay extends TextField {
 		if (showMemory) {
 			text += '${FlxStringUtil.formatBytes(Memory.getCurrentUsage())} / ${FlxStringUtil.formatBytes(Memory.getPeakUsage())}\n';
 		}
-		if (showVersion) {
-			text += '$version\n';
-		}
 		if (showTracedLines && Options.getData("developer")) {
 			var textToAppend:String = '';
 			var showLogs:Bool = Main.logsOverlay.logs.length > 0;
@@ -98,6 +95,9 @@ class SimpleInfoDisplay extends TextField {
 				textToAppend += '. Press F3 to view.\n';
 			}
 			text += textToAppend;
+		}
+		if (showVersion) {
+			text += 'LE $version\n';
 		}
 		if (showCommitHash) {
 			text += 'Commit ${GithubCommitHash.getGitCommitHash().substring(0, 7)}';

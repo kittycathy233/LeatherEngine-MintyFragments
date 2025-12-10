@@ -6,6 +6,7 @@ haxelib --global update haxelib
 haxelib git hxcpp https://github.com/FunkinCrew/hxcpp
 haxelib install format
 haxelib install hxp
+haxelib install hxWindowColorMode 0.2.1
 haxelib --skip-dependencies git lime https://github.com/swordcubes-grave-of-shite/lime
 haxelib --skip-dependencies git openfl https://github.com/swordcubes-grave-of-shite/openfl
 haxelib --skip-dependencies git flixel https://github.com/swordcubes-grave-of-shite/flixel dev

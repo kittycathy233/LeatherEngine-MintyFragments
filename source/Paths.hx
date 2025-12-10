@@ -172,16 +172,35 @@ class Paths {
 	}
 
 	static public function songEvents(song:String, ?difficulty:String):String {
+		song = song.toLowerCase();
+		
 		if (difficulty != null) {
-			if (difficulty.toLowerCase() == 'nightmare') {
-				if (Assets.exists(json("song data/" + song.toLowerCase() + '/events-erect')))
-					return json("song data/" + song.toLowerCase() + '/events-erect');
+			difficulty = difficulty.toLowerCase();
+			
+			// 特殊处理nightmare难度
+			if (difficulty == 'nightmare') {
+				if (Assets.exists(json('song data/$song/events-erect')))
+					return json('song data/$song/events-erect');
 			}
-			if (Assets.exists(json("song data/" + song.toLowerCase() + '/events-${difficulty.toLowerCase()}')))
-				return json("song data/" + song.toLowerCase() + '/events-${difficulty.toLowerCase()}');
+			
+			// 按优先级顺序检查不同的事件文件格式
+			var eventPatterns:Array<String> = [
+				'song data/$song/events-$difficulty',     // 标准格式
+				'song data/$song/events-${difficulty}nightmare',  // nightmare变体
+				'song data/$song/events-erect',          // erect格式
+				'song data/$song/events-hard',           // hard备用
+				'song data/$song/events-normal'          // normal备用
+			];
+			
+			for (pattern in eventPatterns) {
+				if (Assets.exists(json(pattern))) {
+					return json(pattern);
+				}
+			}
 		}
 
-		return json("song data/" + song.toLowerCase() + "/events");
+		// 默认事件文件
+		return json('song data/$song/events');
 	}
 
 	inline static public function getSparrowAtlas(key:String, ?library:String, avoidGPU:Bool = false):FlxAtlasFrames {

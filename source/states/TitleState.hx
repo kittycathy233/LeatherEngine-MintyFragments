@@ -313,7 +313,7 @@ class TitleState extends MusicBeatState {
 				pressedEnter = true;
 		}
 
-		if (pressedEnter && !transitioning && skippedIntro) {
+		if (pressedEnter && !transitioning && skippedIntro && initialized) {
 			if (titleText != null)
 				titleText.animation.play('press');
 
@@ -366,7 +366,7 @@ class TitleState extends MusicBeatState {
 			#end
 		}
 
-		if (pressedEnter && !skippedIntro) {
+		if (pressedEnter && !skippedIntro && initialized) {
 			skipIntro();
 		}
 
@@ -484,7 +484,7 @@ class TitleState extends MusicBeatState {
 
 	public function skipIntro():Void {
 		call("skipIntro");
-		if (!skippedIntro) {
+		if (!skippedIntro && initialized) {
 			MusicBeatState.windowNameSuffix = "";
 
 			if (Options.getData("flashingLights"))

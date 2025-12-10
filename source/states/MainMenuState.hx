@@ -9,6 +9,7 @@ import modding.PolymodHandler;
 import utilities.Options;
 import flixel.util.FlxTimer;
 import lime.utils.Assets;
+import game.Replay;
 import flixel.FlxG;
 import flixel.FlxObject;
 import flixel.FlxSprite;
@@ -60,6 +61,9 @@ class MainMenuState extends MusicBeatState {
 		if (PolymodHandler.metadataArrays.length > 0)
 			optionShit.push('mods');
 		#end
+
+		if(Replay.getReplayList().length > 0)
+			optionShit.push('replays');
 
 		if (Options.getData("developer"))
 			optionShit.push('toolbox');
@@ -232,6 +236,9 @@ class MainMenuState extends MusicBeatState {
 			case 'mods':
 				FlxG.switchState(() -> new ModsMenu());
 			#end
+
+			case 'replays':
+				FlxG.switchState(new ReplaySelectorState());
 
 			case 'toolbox':
 				FlxG.switchState(() -> new toolbox.ToolboxState("Categories", 0xFF00FF6A));

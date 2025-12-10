@@ -65,12 +65,21 @@ class FreeplayState extends MusicBeatState {
 	public var curDiffArray:Array<String> = ["easy", "normal", "hard"];
 
 	public var vocals:FlxSound = new FlxSound();
+	
+	// 用于同时播放 Player 和 Opponent 音轨的引用
+	public var playerVocals:FlxSound = null;
+	public var opponentVocals:FlxSound = null;
 
 	public var canEnterSong:Bool = true;
 	public var isResettingScore:Bool = false; // 标志跟踪是否正在重置分数
-
+	
 	// thx psych engine devs
 	public var colorTween:FlxTween;
+	
+	// pixel 风格 icon 动画相关变量
+	public var isPixelStyle:Bool = false;
+	public var pixelIconScaleTimer:Float = 0; // 动画计时器
+	public var pixelIconScalePhase:Int = 0; // 动画阶段：0=无动画, 1-5=缩放阶段
 
 	#if (target.threaded)
 	public var loading_songs:Thread;
@@ -240,6 +249,20 @@ class FreeplayState extends MusicBeatState {
 		infoBG.scrollFactor.set();
 		add(infoBG);
 		add(infoText);
+		
+		// 初始化音频信息显示
+		audioInfoText = new FlxText(0, 0, 0, "", 16);
+		audioInfoText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, LEFT);
+		audioInfoText.visible = false;
+		audioInfoText.scrollFactor.set();
+		
+		audioInfoBG = new FlxSprite(0, 0).makeGraphic(1, 1, FlxColor.BLACK);
+		audioInfoBG.alpha = 0.6;
+		audioInfoBG.visible = false;
+		audioInfoBG.scrollFactor.set();
+		
+		add(audioInfoBG);
+		add(audioInfoText);
 
 		super.create();
 		call("createPost");
@@ -249,6 +272,14 @@ class FreeplayState extends MusicBeatState {
 
 	public var infoText:FlxText;
 	public var infoBG:FlxSprite;
+	
+	// 音频信息显示相关
+	public var audioInfoText:FlxText;
+	public var audioInfoBG:FlxSprite;
+	public var audioInfoVisible:Bool = false;
+	public var lastPlayedSong:String = "";
+	public var lastPlayedDifficulty:String = "";
+	public var audioInfoTimer:FlxTimer;
 
 	/*public function addSong(songName:String, weekNum:Int, songCharacter:String) {
 			call("addSong", [songName, weekNum, songCharacter]);
@@ -278,9 +309,33 @@ class FreeplayState extends MusicBeatState {
 			_icon.scale.set(_icon.startSize, _icon.startSize);
 		}
 
-		if (lastSelectedSong != -1 && scaleIcon != null)
-			scaleIcon.scale.set(FlxMath.lerp(scaleIcon.scale.x, scaleIcon.startSize, elapsed * 9),
-				FlxMath.lerp(scaleIcon.scale.y, scaleIcon.startSize, elapsed * 9));
+		if (lastSelectedSong != -1 && scaleIcon != null) {
+			if (isPixelStyle && pixelIconScalePhase > 0) {
+				// Pixel 风格：五段式缩放动画
+				pixelIconScaleTimer -= elapsed;
+				
+				if (pixelIconScaleTimer <= 0 && pixelIconScalePhase < 5) {
+					// 缩放序列：1.3 -> 1.225 -> 1.15 -> 1.075 -> 1.0
+					var scales:Array<Float> = [1.3, 1.225, 1.15, 1.075, 1.0];
+					var scale:Float = scales[pixelIconScalePhase];
+					scaleIcon.scale.set(scale * scaleIcon.startSize, scale * scaleIcon.startSize);
+					
+					pixelIconScalePhase++;
+					if (pixelIconScalePhase >= 5) {
+						// 动画结束
+						pixelIconScaleTimer = 0;
+						pixelIconScalePhase = 0;
+					} else {
+						// 继续下一阶段
+						pixelIconScaleTimer = 0.05;
+					}
+				}
+			} else if (!isPixelStyle) {
+				// 非 pixel 风格：使用原始的 lerp 动画
+				scaleIcon.scale.set(FlxMath.lerp(scaleIcon.scale.x, scaleIcon.startSize, elapsed * 9),
+					FlxMath.lerp(scaleIcon.scale.y, scaleIcon.startSize, elapsed * 9));
+			}
+		}
 
 		lerpScore = Math.floor(FlxMath.lerp(lerpScore, intendedScore, 0.4));
 
@@ -360,6 +415,16 @@ class FreeplayState extends MusicBeatState {
 				if (FlxG.sound.music.active && FlxG.sound.music.playing)
 					FlxG.sound.music.pitch = 1;
 
+				// 重置 pixel 状态
+				isPixelStyle = false;
+				pixelIconScaleTimer = 0;
+				pixelIconScalePhase = 0;
+				
+				// 重置音频信息状态
+				lastPlayedSong = "";
+				lastPlayedDifficulty = "";
+				hideAudioInfo();
+
 				#if (target.threaded)
 				stop_loading_songs = true;
 				#end
@@ -371,27 +436,101 @@ class FreeplayState extends MusicBeatState {
 
 			#if PRELOAD_ALL
 			if (FlxG.keys.justPressed.SPACE) {
-				destroyFreeplayVocals();
+				var currentSong:String = curSong.name;
+				var sameSongAndDifficulty:Bool = (currentSong == lastPlayedSong && curDiffString == lastPlayedDifficulty);
+				
+				// 如果不是相同曲目或难度，才销毁现有的音轨
+				if (!sameSongAndDifficulty) {
+					destroyFreeplayVocals();
+				} else {
+					// 相同曲目，只停止播放但不销毁UI元素
+					destroyFreeplayVocalsWithoutUI();
+				}
 
 				// TODO: maybe change this idrc actually it seems ok now
 				if (Assets.exists(SongLoader.getPath(curDiffString, curSong.name.toLowerCase(), mix))) {
 					PlayState.SONG = SongLoader.loadFromJson(curDiffString, curSong.name.toLowerCase(), mix);
 					Conductor.changeBPM(PlayState.SONG.bpm, curSpeed);
+					
+					// 检测 noteStyle 是否包含 pixel 字样
+					isPixelStyle = false;
+					// 检查 ui_Skin 字段（noteStyle 被转换到这里）
+					if (PlayState.SONG.ui_Skin != null && PlayState.SONG.ui_Skin.toLowerCase().indexOf("pixel") != -1) {
+						isPixelStyle = true;
+						pixelIconScaleTimer = 0;
+						pixelIconScalePhase = 0;
+					}
 				}
 
-				vocals = new FlxSound();
-
 				var voicesDiff:String = (PlayState.SONG != null ? (PlayState.SONG.specialAudioName ?? curDiffString.toLowerCase()) : curDiffString.toLowerCase());
-				var voicesPath:String = Paths.voices(curSong.name.toLowerCase(), voicesDiff, mix ?? '');
-
-				if (Assets.exists(voicesPath))
-					vocals.loadEmbedded(voicesPath);
-
-				vocals.persist = false;
-				vocals.looped = true;
-				vocals.volume = 0.7;
-
-				FlxG.sound.list.add(vocals);
+				
+				// 扩展的人声检测逻辑：优先检测 Voices-Player 和 Voices-Opponent
+				var playerVoicesPath:String = Paths.voices(curSong.name.toLowerCase(), voicesDiff, "player", mix ?? '');
+				var opponentVoicesPath:String = Paths.voices(curSong.name.toLowerCase(), voicesDiff, "opponent", mix ?? '');
+				var normalVoicesPath:String = Paths.voices(curSong.name.toLowerCase(), voicesDiff, mix ?? '');
+				
+				// 检测是否存在 Voices-Player 或 Voices-Opponent
+				var playerExists:Bool = Assets.exists(playerVoicesPath);
+				var opponentExists:Bool = Assets.exists(opponentVoicesPath);
+				
+				if (playerExists && opponentExists) {
+					// 如果两者都存在，同时加载 Player 和 Opponent 人声
+					FlxG.log.notice("检测到 Voices-Player 和 Voices-Opponent，同时加载两个音轨");
+					
+					// 创建两个独立的音轨并保存引用
+					playerVocals = new FlxSound();
+					opponentVocals = new FlxSound();
+					
+					playerVocals.loadEmbedded(playerVoicesPath);
+					playerVocals.persist = false;
+					playerVocals.looped = true;
+					playerVocals.volume = 0.7;
+					
+					opponentVocals.loadEmbedded(opponentVoicesPath);
+					opponentVocals.persist = false;
+					opponentVocals.looped = true;
+					opponentVocals.volume = 0.7;
+					
+					FlxG.sound.list.add(playerVocals);
+					FlxG.sound.list.add(opponentVocals);
+					
+					// 使用现有的 vocals 变量作为主要引用，但实际上是 player vocals
+					vocals = playerVocals;
+				} else if (playerExists) {
+					// 只有 Player 人声存在
+					FlxG.log.notice("检测到 Voices-Player，加载 Player 人声: " + playerVoicesPath);
+					playerVocals = new FlxSound();
+					playerVocals.loadEmbedded(playerVoicesPath);
+					playerVocals.persist = false;
+					playerVocals.looped = true;
+					playerVocals.volume = 0.7;
+					FlxG.sound.list.add(playerVocals);
+					vocals = playerVocals;
+					opponentVocals = null;
+				} else if (opponentExists) {
+					// 只有 Opponent 人声存在
+					FlxG.log.notice("检测到 Voices-Opponent，加载 Opponent 人声: " + opponentVoicesPath);
+					opponentVocals = new FlxSound();
+					opponentVocals.loadEmbedded(opponentVoicesPath);
+					opponentVocals.persist = false;
+					opponentVocals.looped = true;
+					opponentVocals.volume = 0.7;
+					FlxG.sound.list.add(opponentVocals);
+					vocals = opponentVocals;
+					playerVocals = null;
+				} else {
+					// 使用原始的 Voices 路径
+					FlxG.log.notice("未检测到 Voices-Player/Opponent，使用原始 Voices 路径: " + normalVoicesPath);
+					vocals = new FlxSound();
+					if (Assets.exists(normalVoicesPath))
+						vocals.loadEmbedded(normalVoicesPath);
+					vocals.persist = false;
+					vocals.looped = true;
+					vocals.volume = 0.7;
+					FlxG.sound.list.add(vocals);
+					playerVocals = null;
+					opponentVocals = null;
+				}
 
 				FlxG.sound.music = new FlxSound().loadEmbedded(Paths.inst(curSong.name.toLowerCase(), curDiffString.toLowerCase(), mix));
 				FlxG.sound.music.persist = true;
@@ -401,17 +540,65 @@ class FreeplayState extends MusicBeatState {
 				FlxG.sound.list.add(FlxG.sound.music);
 
 				FlxG.sound.music.play();
-				vocals.play();
+				
+				// 播放音轨
+				if (vocals != null) {
+					vocals.play();
+				}
+				// 如果同时有 Player 和 Opponent 音轨，也需要播放 Opponent
+				if (playerVocals != null && opponentVocals != null) {
+					opponentVocals.play();
+				}
+				
+				// 显示音频信息（只在曲目或难度不同时）
+				if (!sameSongAndDifficulty) {
+					var instPath:String = Paths.inst(curSong.name.toLowerCase(), curDiffString.toLowerCase(), mix);
+					var voicePaths:Array<String> = [];
+					
+					if (playerExists && opponentExists) {
+						voicePaths.push(playerVoicesPath);
+						voicePaths.push(opponentVoicesPath);
+					} else if (playerExists) {
+						voicePaths.push(playerVoicesPath);
+					} else if (opponentExists) {
+						voicePaths.push(opponentVoicesPath);
+					} else if (Assets.exists(normalVoicesPath)) {
+						voicePaths.push(normalVoicesPath);
+					}
+					
+					showAudioInfo(instPath, voicePaths, 4);
+				}
 
 				lastSelectedSong = curSelected;
 				scaleIcon = iconArray[lastSelectedSong];
+				
+				// 延迟执行首拍缩放动画，等待音乐真正开始播放
+				new FlxTimer().start(0.01, function(_) {
+					if (scaleIcon != null) {
+						if (isPixelStyle) {
+							// Pixel 风格：开始五段式动画
+							scaleIcon.scale.set(1.3 * scaleIcon.startSize, 1.3 * scaleIcon.startSize);
+							pixelIconScaleTimer = 0.05;
+							pixelIconScalePhase = 1;
+						} else {
+							// 非 pixel 风格：执行一次普通的缩放效果
+							scaleIcon.scale.add(0.2 * scaleIcon.startSize, 0.2 * scaleIcon.startSize);
+						}
+					}
+				});
 			}
 			#end
 
 			if (FlxG.sound.music.active && FlxG.sound.music.playing && !FlxG.keys.justPressed.ENTER)
 				FlxG.sound.music.pitch = curSpeed;
+			
+			// 对所有音轨应用 pitch 控制
 			if (vocals != null && vocals.active && vocals.playing && !FlxG.keys.justPressed.ENTER)
 				vocals.pitch = curSpeed;
+			if (playerVocals != null && playerVocals.active && playerVocals.playing && !FlxG.keys.justPressed.ENTER)
+				playerVocals.pitch = curSpeed;
+			if (opponentVocals != null && opponentVocals.active && opponentVocals.playing && !FlxG.keys.justPressed.ENTER)
+				opponentVocals.pitch = curSpeed;
 
 		if (controls.RESET && !shift) {
 			isResettingScore = true; // 设置重置分数标志
@@ -541,7 +728,7 @@ class FreeplayState extends MusicBeatState {
 		PlayState.loadChartEvents = true;
 		PlayState.chartingMode = false;
 		destroyFreeplayVocals();
-		FlxG.switchState(() -> new PlayState());
+		LoadingState.loadAndSwitchState(() -> new PlayState());
 	}
 
 	override function closeSubState() {
@@ -626,6 +813,11 @@ class FreeplayState extends MusicBeatState {
 
 			if (vocals != null && vocals.active && vocals.playing)
 				destroyFreeplayVocals(false);
+				
+			// 切换歌曲时重置 pixel 状态
+			isPixelStyle = false;
+			pixelIconScaleTimer = 0;
+			pixelIconScalePhase = 0;
 		}
 
 		if (songs.length != 0) {
@@ -686,14 +878,323 @@ class FreeplayState extends MusicBeatState {
 		call("changeSelectionPost", [change]);
 	}
 
+	/**
+	 * 显示音频信息
+	 */
+	public function showAudioInfo(instPath:String, voicePaths:Array<String>, delayBeats:Int = 4) {
+		// 如果是同一首歌且同一难度，不重新显示，但确保信息保持可见
+		var currentSong:String = songs[curSelected].name;
+		if (currentSong == lastPlayedSong && curDiffString == lastPlayedDifficulty && audioInfoVisible) {
+			return;
+		}
+		
+		// 如果已有音频信息显示且是相同曲目，不要隐藏，直接返回
+		if (audioInfoVisible && currentSong == lastPlayedSong && curDiffString == lastPlayedDifficulty) {
+			return;
+		}
+		
+		// 如果已有音频信息显示，先飞出
+		if (audioInfoVisible) {
+			hideAudioInfo(function() {
+				// 延迟显示新信息
+				showAudioInfoDelayed(instPath, voicePaths, delayBeats);
+			});
+		} else {
+			showAudioInfoDelayed(instPath, voicePaths, delayBeats);
+		}
+		
+		lastPlayedSong = currentSong;
+		lastPlayedDifficulty = curDiffString;
+	}
+	
+	/**
+	 * 延迟显示音频信息
+	 */
+	private function showAudioInfoDelayed(instPath:String, voicePaths:Array<String>, delayBeats:Int) {
+		// 计算延迟时间（基于BPM）
+		var beatTime:Float = 60 / Conductor.bpm;
+		var delay:Float = beatTime * delayBeats;
+		
+		// 构建音频信息文本 - 修复逻辑
+		var instFileName:String = instPath.split('/').pop();
+		var curSong:FreeplaySong = songs[curSelected];
+		
+		// 构建显示内容的各个部分
+		var lines:Array<String> = [];
+		lines.push("Song: " + curSong.name);
+		lines.push("Diff: " + curDiffString.toUpperCase());
+		
+		// 添加箭头数量信息
+		if (PlayState.SONG != null) {
+			var playerNoteCount:Int = 0;
+			var opponentNoteCount:Int = 0;
+			
+			// 构建轨道数量变化事件数组（完全复制 PlayState.generareNoteChangeEvents 逻辑）
+			var maniaChanges:Array<Dynamic> = [];
+			var allEvents:Array<Array<Dynamic>> = [];
+			
+			// 收集所有事件
+			if (PlayState.SONG.events != null && PlayState.SONG.events.length > 0) {
+				for (event in PlayState.SONG.events) {
+					allEvents.push(event);
+				}
+			}
+			
+			// 尝试加载 songEvents 文件（类似 PlayState 的逻辑）
+			var eventsPath:String = Paths.songEvents(PlayState.SONG.song.toLowerCase(), curDiffString.toLowerCase());
+			if (Assets.exists(eventsPath)) {
+				try {
+					var eventFunnies:Array<Array<Dynamic>> = SongLoader.parseLegacy(Json.parse(Assets.getText(eventsPath)), PlayState.SONG.song).events;
+					for (event in eventFunnies) {
+						allEvents.push(event);
+					}
+				} catch (e:Dynamic) {
+					FlxG.log.warn("Failed to load song events: " + e);
+				}
+			}
+			
+			// 提取轨道数量变化事件
+			for (event in allEvents) {
+				if (event[0].toLowerCase() == "change keycount" || event[0].toLowerCase() == "change mania") {
+					// [事件时间, 玩家轨道数, 对手轨道数]
+					maniaChanges.push([event[1], Std.parseInt(event[2]), Std.parseInt(event[3])]);
+				}
+			}
+			
+			// 按时间排序事件
+			maniaChanges.sort((a, b) -> Std.int(a[0] - b[0]));
+			
+			// 遍历所有音符统计实际需要命中的箭头数
+			for (section in PlayState.SONG.notes) {
+				for (note in section.sectionNotes) {
+					var noteStrumTime:Float = note[0];
+					var noteData:Int = note[1];
+					var noteLength:Float = note[2];
+					var mustHit:Bool = section.mustHitSection;
+					
+					// 跳过事件音符
+					if (noteData > -1) {
+						// 获取当前时间的轨道数量（完全复制 PlayState.generateSong 逻辑）
+						var currentParsingKeyCount:Int = PlayState.SONG.keyCount ?? 4;
+						var currentParsingPlayerKeyCount:Int = PlayState.SONG.playerKeyCount ?? 4;
+						
+						// 应用轨道数量变化（找到最后一个符合条件的事件）
+						for (mchange in maniaChanges) {
+							if (noteStrumTime >= mchange[0]) {
+								currentParsingKeyCount = mchange[2];
+								currentParsingPlayerKeyCount = mchange[1];
+							}
+						}
+						
+						// 判断音符归属（完全复制 PlayState.generateSong 逻辑）
+						var gottaHitNote:Bool = section.mustHitSection;
+						
+						if (noteData >= (!gottaHitNote ? currentParsingKeyCount : currentParsingPlayerKeyCount)) {
+							gottaHitNote = !section.mustHitSection;
+						}
+						
+						// 不考虑 characterPlayingAs，因为在 FreeplayState 中永远是 BF
+						var isPlayerNote:Bool = gottaHitNote;
+						
+						// 统计箭头数量
+						if (isPlayerNote) {
+							playerNoteCount++;
+						} else {
+							opponentNoteCount++;
+						}
+					}
+				}
+			}
+			
+			lines.push("Notes: " + playerNoteCount + " (BF) | " + opponentNoteCount + " (Dad)");
+		}
+		
+		lines.push("Inst: " + instFileName);
+		
+		// 添加人声音轨信息
+		var hasPlayerVoices:Bool = false;
+		var hasOpponentVoices:Bool = false;
+		var hasNormalVoices:Bool = false;
+		
+		for (path in voicePaths) {
+			var fileName:String = path.split('/').pop();
+			if (fileName.indexOf("-player") != -1) {
+				hasPlayerVoices = true;
+			} else if (fileName.indexOf("-opponent") != -1) {
+				hasOpponentVoices = true;
+			} else {
+				hasNormalVoices = true;
+			}
+		}
+		
+		// 根据分析结果添加人声信息
+		if (hasPlayerVoices && hasOpponentVoices) {
+			// 两个分离的人声音轨
+			var playerFileName:String = "";
+			var opponentFileName:String = "";
+			
+			for (path in voicePaths) {
+				var fileName:String = path.split('/').pop();
+				if (fileName.indexOf("-player") != -1) {
+					playerFileName = fileName;
+				} else if (fileName.indexOf("-opponent") != -1) {
+					opponentFileName = fileName;
+				}
+			}
+			
+			lines.push("Vocal(BF): " + playerFileName);
+			lines.push("Vocal(Dad): " + opponentFileName);
+		} else if (hasPlayerVoices) {
+			// 只有 Player 人声
+			for (path in voicePaths) {
+				var fileName:String = path.split('/').pop();
+				if (fileName.indexOf("-player") != -1) {
+					lines.push("Vocal(BF): " + fileName);
+					break;
+				}
+			}
+		} else if (hasOpponentVoices) {
+			// 只有 Opponent 人声
+			for (path in voicePaths) {
+				var fileName:String = path.split('/').pop();
+				if (fileName.indexOf("-opponent") != -1) {
+					lines.push("Vocal(Dad): " + fileName);
+					break;
+				}
+			}
+		} else if (hasNormalVoices) {
+			// 只有原始 Voices 人声
+			for (path in voicePaths) {
+				var fileName:String = path.split('/').pop();
+				lines.push("Vocal: " + fileName);
+				break;
+			}
+		}
+		// 如果没有任何人声音轨，则不添加 Voice 行
+		
+		// 找出最长的行
+		var maxLineLength:Int = 0;
+		for (line in lines) {
+			if (line.length > maxLineLength) {
+				maxLineLength = line.length;
+			}
+		}
+		
+		// 计算需要的横线数量（最少3个，基于最长行长度）
+		var dashCount:Int = Math.ceil((maxLineLength - 12) / 2); // " Player Info " 占12个字符
+		if (dashCount < 3) dashCount = 3; // 最少3个横线
+		
+		// 构建最终文本
+		var dashes:String = "";
+		for (i in 0...dashCount) {
+			dashes += "-";
+		}
+		var fullText:String = dashes + " Player Info " + dashes + "\n\n";
+		fullText += lines.join("\n");
+
+		
+		audioInfoText.text = fullText;
+		audioInfoText.alpha = 0;
+		
+		// 设置背景大小
+		var textWidth:Float = audioInfoText.width + 20;
+		var textHeight:Float = audioInfoText.height + 15;
+		audioInfoBG.makeGraphic(Std.int(textWidth), Std.int(textHeight), FlxColor.BLACK);
+		
+		// 设置位置（右侧居中）
+		var targetX:Float = FlxG.width - textWidth - 20;
+		var targetY:Float = (FlxG.height - textHeight) / 2;
+		
+		audioInfoBG.x = targetX;
+		audioInfoBG.y = targetY;
+		audioInfoText.x = targetX + 10;
+		audioInfoText.y = targetY + 7;
+		
+		// 初始位置在屏幕外
+		audioInfoBG.x = FlxG.width + 50;
+		audioInfoText.x = FlxG.width + 60;
+		
+		// 延迟后飞入
+		audioInfoTimer = new FlxTimer().start(delay, function(_) {
+			audioInfoBG.visible = true;
+			audioInfoText.visible = true;
+			audioInfoVisible = true;
+			
+			// 飞入动画
+			FlxTween.tween(audioInfoBG, {x: targetX}, 0.5, {ease: FlxEase.quadOut});
+			FlxTween.tween(audioInfoText, {x: targetX + 10}, 0.5, {ease: FlxEase.quadOut});
+			FlxTween.tween(audioInfoBG, {alpha: 0.6}, 0.5);
+			FlxTween.tween(audioInfoText, {alpha: 1}, 0.5);
+		});
+	}
+	
+	/**
+	 * 隐藏音频信息
+	 */
+	public function hideAudioInfo(?onComplete:Void->Void) {
+		if (!audioInfoVisible) {
+			if (onComplete != null) onComplete();
+			return;
+		}
+		
+		// 飞出动画
+		FlxTween.tween(audioInfoBG, {x: FlxG.width + 50}, 0.3, {
+			ease: FlxEase.quadIn,
+			onComplete: function(twn:FlxTween) {
+				audioInfoBG.visible = false;
+				if (onComplete != null) onComplete();
+			}
+		});
+		FlxTween.tween(audioInfoText, {x: FlxG.width + 60}, 0.3, {
+			ease: FlxEase.quadIn,
+			onComplete: function(twn:FlxTween) {
+				audioInfoText.visible = false;
+				audioInfoVisible = false;
+			}
+		});
+		FlxTween.tween(audioInfoBG, {alpha: 0}, 0.3);
+		FlxTween.tween(audioInfoText, {alpha: 0}, 0.3);
+		
+		if (audioInfoTimer != null) {
+			audioInfoTimer.cancel();
+			audioInfoTimer = null;
+		}
+	}
+	
 	public function destroyFreeplayVocals(?destroyInst:Bool = true) {
 		call("destroyFreeplayVocals", [destroyInst]);
+		
+		// 隐藏音频信息
+		hideAudioInfo();
+		
+		destroyFreeplayVocalsWithoutUI(destroyInst);
+		
+		call("destroyFreeplayVocalsPost", [destroyInst]);
+	}
+	
+	/**
+	 * 销毁音轨但不影响UI元素（用于重新播放相同曲目）
+	 */
+	public function destroyFreeplayVocalsWithoutUI(?destroyInst:Bool = true) {
+		// 销毁所有音轨
 		if (vocals != null) {
 			vocals.stop();
 			vocals.destroy();
 		}
+		
+		if (playerVocals != null && playerVocals != vocals) {
+			playerVocals.stop();
+			playerVocals.destroy();
+		}
+		
+		if (opponentVocals != null && opponentVocals != vocals) {
+			opponentVocals.stop();
+			opponentVocals.destroy();
+		}
 
 		vocals = null;
+		playerVocals = null;
+		opponentVocals = null;
 
 		if (!destroyInst)
 			return;
@@ -704,7 +1205,6 @@ class FreeplayState extends MusicBeatState {
 		}
 
 		FlxG.sound.music = null;
-		call("destroyFreeplayVocalsPost", [destroyInst]);
 	}
 
 	var scaleIcon:HealthIcon;
@@ -713,8 +1213,17 @@ class FreeplayState extends MusicBeatState {
 		call("beatHit");
 		super.beatHit();
 
-		if (lastSelectedSong >= 0 && scaleIcon != null)
-			scaleIcon.scale.add(0.2 * scaleIcon.startSize, 0.2 * scaleIcon.startSize);
+		if (lastSelectedSong >= 0 && scaleIcon != null) {
+			if (isPixelStyle) {
+				// Pixel 风格：每 beat 重新开始五段式动画
+				scaleIcon.scale.set(1.3 * scaleIcon.startSize, 1.3 * scaleIcon.startSize);
+				pixelIconScaleTimer = 0.05; // 0.05秒后进入下一阶段
+				pixelIconScalePhase = 1; // 处于第一缩放阶段
+			} else {
+				// 原始效果：每次 beat 增加 0.2 倍
+				scaleIcon.scale.add(0.2 * scaleIcon.startSize, 0.2 * scaleIcon.startSize);
+			}
+		}
 		call("beatHitPost");
 	}
 }

@@ -29,6 +29,7 @@ class PolymodHandler {
                     "songs" => "songs",
                     "stages" => "stages",
                     "shared" => "shared",
+                    "replays" => "replays",
                     "fonts" => "fonts"
                 ]
             }

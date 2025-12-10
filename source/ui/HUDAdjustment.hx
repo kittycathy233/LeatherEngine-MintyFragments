@@ -378,7 +378,7 @@ class HUDAdjustment extends MusicBeatState {
 			+ "Shit: "
 			+ Std.string(ratingArray[4])
 			+ "\n"
-			+ "Misses: "
+			+ "Miss: "
 			+ FlxG.random.int(0, 69)
 			+ "\n"
 			+ (Options.getData("marvelousRatings")

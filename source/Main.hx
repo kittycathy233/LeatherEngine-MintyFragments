@@ -28,6 +28,9 @@ import sys.io.Process;
 import hxgamemode.GamemodeClient;
 #end
 
+#if windows
+import hxwindowmode.WindowColorMode;
+#end
 class Main extends Sprite {
 	public static var display:SimpleInfoDisplay;
 	public static var logsOverlay:Logs;
@@ -132,6 +135,10 @@ class Main extends Sprite {
 				resetSpriteCache(FlxG.game);
 			}
 		});
+
+		#if windows
+		WindowColorMode.setDarkMode();
+		#end
 	}
 
 	public static inline function resetSpriteCache(sprite:Sprite):Void {

@@ -445,6 +445,8 @@ class PlayState extends MusicBeatState {
 	**/
 	static var songMultiplier:Float = 1;
 
+	public var hasUsedBot:Bool = false;
+
 	/**
 		Variable that stores the original scroll speed before being divided by `songMultiplier`.
 
@@ -590,12 +592,31 @@ class PlayState extends MusicBeatState {
 	var tweenManager:FlxTweenManager;
 
 	var replay:Replay;
+	public var inputs:Array<Array<Dynamic>> = [];
+
+	public static var playingReplay:Bool = false;
+
+		public function new(?_replay:Replay)
+	{
+		super();
+
+		if(_replay != null)
+		{
+			replay = _replay;
+			playingReplay = true;
+		}
+		else
+			replay = new Replay();
+	}
 
 	override function create() {
 		// set instance because duh
 		instance = this;
 		tweenManager = new FlxTweenManager();
-		replay = new Replay();
+		
+		// Only create new replay if one wasn't passed in constructor
+		if (replay == null || !playingReplay)
+			replay = new Replay();
 
 		FlxG.mouse.visible = false;
 
@@ -641,6 +662,39 @@ class PlayState extends MusicBeatState {
 		// check for invalid settings
 		if (Options.getData("botplay") || Options.getData("noDeath") || characterPlayingAs != BF || PlayState.chartingMode) {
 			SONG.validScore = false;
+		}
+
+		if (utilities.Options.getData("botplay"))
+			hasUsedBot = true;
+
+		if (utilities.Options.getData("noDeath"))
+			hasUsedBot = true;
+
+		if (characterPlayingAs != 0)
+			hasUsedBot = true;
+
+		if (playingReplay) {
+			hasUsedBot = true;
+
+			Conductor.offset = replay.offset;
+
+			utilities.Options.setData(replay.judgementTimings, "judgementTimings");
+			utilities.Options.setData(replay.ghostTapping, "ghostTapping");
+			utilities.Options.setData(replay.antiMash, "antiMash");
+
+			for (i in 0...replay.inputs.length) {
+				var input = replay.inputs[i];
+
+				if (input.length > 3)
+					inputs.push([
+						Std.int(input[0]),
+						FlxMath.roundDecimal(input[1], 2),
+						Std.int(input[2]),
+						FlxMath.roundDecimal(input[3], 2)
+					]);
+				else
+					inputs.push([Std.int(input[0]), FlxMath.roundDecimal(input[1], 2), Std.int(input[2])]);
+			}
 		}
 
 		// preload the miss sounds
@@ -1017,10 +1071,10 @@ class PlayState extends MusicBeatState {
 		MusicBeatState.windowNameSuffix = " - " + SONG.song + " " + (isStoryMode ? "(Story Mode)" : "(Freeplay)");
 
 		var cutscenePlays:String = Options.getData("cutscenePlaysOn");
-		playCutsceneOnPauseLmao = playCutsceneLmao = ((cutscenePlays == "both")
+		playCutsceneOnPauseLmao = playCutsceneLmao = (!playingReplay && ((cutscenePlays == "both")
 			|| (isStoryMode && cutscenePlays == "story")
 			|| (!isStoryMode && cutscenePlays == "freeplay"))
-			&& !playCutscenes;
+			&& !playCutscenes);
 
 		playCutscenes = false;
 
@@ -1833,11 +1887,50 @@ class PlayState extends MusicBeatState {
 
 	var song_info_timer:Float = 0.0;
 
+	// HUD优化 - 缓存系统
+	var cachedScoreText:String = "";
+	var cachedSongInfoText:String = "";
+	var lastSongScore:Int = -1;
+	var lastMisses:Int = -1;
+	var lastAccuracy:Float = -1;
+	var lastRatingStr:String = "";
+	var lastSongTime:Float = -1;
+	var lastBotplay:Bool = false;
+	var lastNoDeath:Bool = false;
+	var hudNeedsUpdate:Bool = true;
+	
+	// 音符处理优化 - 缓存
+	var cachedCharacterAnimations:Array<Array<String>> = [];
+	var lastKeyCount:Int = -1;
+	var lastPlayerKeyCount:Int = -1;
+	var downscrollCached:Bool = false;
+	
+	// HUD脏标记系统
+	var hudDirtyFlags:Map<String, Bool> = [
+		"score" => false,
+		"songInfo" => false,
+		"icons" => false
+	];
+
 	inline function fixedUpdate() {
 		call("fixedUpdate", [1 / 120]);
 	}
 
 	var fixedUpdateTime:Float = 0.0;
+	
+	// HUD脏标记管理
+	inline function markHUDDirty(component:String):Void {
+		hudDirtyFlags.set(component, true);
+		hudNeedsUpdate = true;
+	}
+	
+	inline function clearHUDDirty(component:String):Void {
+		hudDirtyFlags.set(component, false);
+	}
+	
+	inline function isHUDDirty(component:String):Bool {
+		return hudDirtyFlags.get(component);
+	}
 
 	function trackSingDirection(char:Character):Void {
 		if (Options.getData("cameraTracksDirections") && char.getMainCharacter().hasAnims()) {
@@ -1865,24 +1958,40 @@ class PlayState extends MusicBeatState {
 		var iconLerp:Float = elapsed * 9;
 		var zoomLerp:Float = (elapsed * 3) * cameraZoomSpeed;
 
-		iconP1.scale.set(FlxMath.lerp(iconP1.scale.x, iconP1.startSize, iconLerp * songMultiplier),
-			FlxMath.lerp(iconP1.scale.y, iconP1.startSize, iconLerp * songMultiplier));
-		iconP2.scale.set(FlxMath.lerp(iconP2.scale.x, iconP2.startSize, iconLerp * songMultiplier),
-			FlxMath.lerp(iconP2.scale.y, iconP2.startSize, iconLerp * songMultiplier));
+		// HUD优化 - 缓存当前scale值，减少重复计算
+		var p1TargetX:Float = FlxMath.lerp(iconP1.scale.x, iconP1.startSize, iconLerp * songMultiplier);
+		var p1TargetY:Float = FlxMath.lerp(iconP1.scale.y, iconP1.startSize, iconLerp * songMultiplier);
+		var p2TargetX:Float = FlxMath.lerp(iconP2.scale.x, iconP2.startSize, iconLerp * songMultiplier);
+		var p2TargetY:Float = FlxMath.lerp(iconP2.scale.y, iconP2.startSize, iconLerp * songMultiplier);
 
-		iconP1.scale.set(Math.min(iconP1.scale.x, iconP1.startSize + 0.2 * iconP1.startSize),
-			Math.min(iconP1.scale.y, iconP1.startSize + 0.2 * iconP1.startSize));
-		iconP2.scale.set(Math.min(iconP2.scale.x, iconP2.startSize + 0.2 * iconP2.startSize),
-			Math.min(iconP2.scale.y, iconP2.startSize + 0.2 * iconP2.startSize));
+		// 只在scale变化显著时更新
+		var p1ScaleChanged:Bool = Math.abs(iconP1.scale.x - p1TargetX) > 0.001 || Math.abs(iconP1.scale.y - p1TargetY) > 0.001;
+		var p2ScaleChanged:Bool = Math.abs(iconP2.scale.x - p2TargetX) > 0.001 || Math.abs(iconP2.scale.y - p2TargetY) > 0.001;
 
-		iconP1.updateHitbox();
-		iconP2.updateHitbox();
+		if (p1ScaleChanged) {
+			iconP1.scale.set(
+				Math.min(p1TargetX, iconP1.startSize + 0.2 * iconP1.startSize),
+				Math.min(p1TargetY, iconP1.startSize + 0.2 * iconP1.startSize)
+			);
+			iconP1.updateHitbox();
+		}
+
+		if (p2ScaleChanged) {
+			iconP2.scale.set(
+				Math.min(p2TargetX, iconP2.startSize + 0.2 * iconP2.startSize),
+				Math.min(p2TargetY, iconP2.startSize + 0.2 * iconP2.startSize)
+			);
+			iconP2.updateHitbox();
+		}
 
 		var iconOffset:Float = 26.0;
 
-		iconP1.x = healthBar.x + (healthBar.width * (FlxMath.remapToRange(healthBar.percent, 0, 100, 100, 0) * 0.01) - iconOffset) - iconP1.offsetX;
+		// HUD优化 - 缓存health百分比计算
+		var healthPercentMapped:Float = FlxMath.remapToRange(healthBar.percent, 0, 100, 100, 0) * 0.01;
+		
+		iconP1.x = healthBar.x + (healthBar.width * healthPercentMapped - iconOffset) - iconP1.offsetX;
 		iconP2.x = healthBar.x
-			+ (healthBar.width * (FlxMath.remapToRange(healthBar.percent, 0, 100, 100, 0) * 0.01))
+			+ (healthBar.width * healthPercentMapped)
 			- (iconP2.width - iconOffset)
 			- iconP2.offsetX;
 
@@ -1905,6 +2014,11 @@ class PlayState extends MusicBeatState {
 		if (song_info_timer >= 0.25 / songMultiplier) {
 			updateSongInfoText();
 			song_info_timer = 0;
+		}
+		
+		// HUD优化 - 重置脏标记状态
+		if (hudNeedsUpdate) {
+			hudNeedsUpdate = false;
 		}
 
 		if (stopSong && !switchedStates) {
@@ -2045,31 +2159,59 @@ class PlayState extends MusicBeatState {
 		}
 
 		if (generatedMusic && !switchedStates && startedCountdown && notes != null && playerStrums.members.length != 0 && enemyStrums.members.length != 0) {
-			notes.forEachAlive(function(note:Note) {
-				var coolStrum:StrumNote = (note.mustPress ? playerStrums.members[Math.floor(Math.abs(note.noteData)) % playerStrums.members.length] : enemyStrums.members[Math.floor(Math.abs(note.noteData)) % enemyStrums.members.length]);
+			// 音符处理优化 - 缓存downscroll状态和key counts
+			var currentDownscroll:Bool = Options.getData("downscroll");
+			if (downscrollCached != currentDownscroll || lastKeyCount != SONG.keyCount || lastPlayerKeyCount != SONG.playerKeyCount) {
+				cachedCharacterAnimations = NoteVariables.characterAnimations.copy();
+				downscrollCached = currentDownscroll;
+				lastKeyCount = SONG.keyCount;
+				lastPlayerKeyCount = SONG.playerKeyCount;
+			}
+			
+			// 性能优化：批量处理音符
+			var noteCount:Int = notes.length;
+			var playerStrumCount:Int = playerStrums.members.length;
+			var enemyStrumCount:Int = enemyStrums.members.length;
+			
+			for (i in 0...noteCount) {
+				var note:Note = notes.members[i];
+				if (note == null || !note.alive) continue;
+				
+				var noteDataAbs:Float = Math.abs(note.noteData);
+				var noteDataInt:Int = Math.floor(noteDataAbs);
+				var coolStrum:StrumNote = (note.mustPress ? 
+					playerStrums.members[noteDataInt % playerStrumCount] : 
+					enemyStrums.members[noteDataInt % enemyStrumCount]);
+				
+				if (coolStrum == null) continue;
+				
 				note.visible = true;
 				note.active = true;
 				note.calculateY(coolStrum);
 				if (note.isSustainNote) {
-					var swagRect:FlxRect = new FlxRect(0, 0, note.frameWidth, note.frameHeight);
-					// TODO: make this not... this
-					if (Options.getData("downscroll")) {
-						swagRect.height = (coolStrum.y + (coolStrum.height / 2) - note.y) / note.scale.y;
+					// 音符优化 - 缓存矩形计算
+					if (note.clipRect == null) {
+						note.clipRect = new FlxRect(0, 0, note.frameWidth, note.frameHeight);
+					}
+					var swagRect:FlxRect = note.clipRect;
+					var coolStrumCenter:Float = coolStrum.y + (coolStrum.height / 2);
+					var noteScaleY:Float = note.scale.y;
+					
+					if (downscrollCached) {
+						swagRect.height = (coolStrumCenter - note.y) / noteScaleY;
 						swagRect.y = note.frameHeight - swagRect.height;
 					} else {
-						// swagRect.width = note.width / note.scale.x;
-						// swagRect.height = note.height / note.scale.y;
-						swagRect.y = (coolStrum.y + (coolStrum.height / 2) - note.y) / note.scale.y;
+						swagRect.y = (coolStrumCenter - note.y) / noteScaleY;
 						swagRect.height -= swagRect.y;
 					}
-					note.clipRect = swagRect;
 				}
 				note.calculateCanBeHit();
 				if (!note.mustPress && note.canBeHit && note.shouldHit) {
 					camZooming = true;
 
-					var singAnim:String = NoteVariables.characterAnimations[getCorrectKeyCount(false) - 1][Std.int(Math.abs(note.noteData))]
-						+ (characterPlayingAs == BF ? altAnim : "") + note.singAnimSuffix;
+				// 音符优化 - 使用缓存的动画数组
+				var animArray:Array<String> = cachedCharacterAnimations[getCorrectKeyCount(false) - 1];
+				var singAnim:String = animArray[Std.int(noteDataAbs)] + (characterPlayingAs == BF ? altAnim : "") + note.singAnimSuffix;
 					if (note.singAnimPrefix != 'sing') {
 						singAnim = singAnim.replace('sing', note.singAnimPrefix);
 					}
@@ -2112,7 +2254,12 @@ class PlayState extends MusicBeatState {
 					note.wasGoodHit = true;
 
 					if (enemyStrumsGlow && enemyStrums.members.length - 1 == SONG.keyCount - 1) {
-						enemyStrums.forEach(function(spr:StrumNote) {
+						// 性能优化：直接遍历 enemyStrums 数组
+						var enemyCount:Int = enemyStrums.length;
+						for (j in 0...enemyCount) {
+							var spr:StrumNote = enemyStrums.members[j];
+							if (spr == null) continue;
+							
 							if (Math.abs(note.noteData) == spr.ID) {
 								spr.playAnim('confirm', true);
 								spr.resetAnim = 0;
@@ -2135,7 +2282,7 @@ class PlayState extends MusicBeatState {
 
 								spr.animation.onFinish.add((animName:String) -> spr.playAnim("static"));
 							}
-						});
+						}
 					}
 
 					if (characterPlayingAs == BF) {
@@ -2294,7 +2441,8 @@ class PlayState extends MusicBeatState {
 
 					invalidateNote(note);
 				}
-			});
+			}
+			// 性能优化：音符循环结束
 
 			if (Options.getData("noteBGAlpha") != 0 && !switchedStates)
 				updateNoteBGPos();
@@ -2609,6 +2757,17 @@ class PlayState extends MusicBeatState {
 				PlayState.loadChartEvents = true;
 				LoadingState.loadAndSwitchState(() -> new PlayState());
 			}
+		} else if (playingReplay) {
+			trace('WENT BACK TO REPLAY SELECTOR??');
+			switchedStates = true;
+
+			if (vocals.active)
+				vocals.stop();
+
+			SONG.keyCount = ogKeyCount;
+			SONG.playerKeyCount = ogPlayerKeyCount;
+
+			FlxG.switchState(new ReplaySelectorState());
 		} else {
 			switchedStates = true;
 
@@ -2622,6 +2781,9 @@ class PlayState extends MusicBeatState {
 
 			FlxG.switchState(() -> new FreeplayState());
 		}
+
+		playingReplay = false;
+
 	}
 
 	var endingSong:Bool = false;
@@ -2648,7 +2810,7 @@ class PlayState extends MusicBeatState {
 
 		noteDiff ??= setNoteDiff;
 
-		replay.recordKeyHit(strumtime, noteDiff);
+		replay.recordKeyHit(noteData, strumtime, noteDiff);
 
 		if (vocals != null)
 			vocals.volume = 1;
@@ -2712,6 +2874,9 @@ class PlayState extends MusicBeatState {
 
 		songScore += score;
 		calculateAccuracy();
+		
+		// HUD优化 - 标记脏状态
+		markHUDDirty("score");
 
 		// ez
 		if (!Options.getData('ratingsAndCombo'))
@@ -2895,14 +3060,30 @@ class PlayState extends MusicBeatState {
 	}
 
 	function updateScoreText() {
-		scoreTxt.text = '<  ${Options.getData('showScore') ? 'Score:${songScore} ~ ' : ''}Misses:${misses} ~ Accuracy:${accuracy}% ~ ${ratingStr}  >';
-		scoreTxt.screenCenter(X);
+		// HUD优化 - 使用脏标记系统
+		var needsUpdate:Bool = isHUDDirty("score") || hudNeedsUpdate ||
+			lastSongScore != songScore || lastMisses != misses || 
+			lastAccuracy != accuracy || lastRatingStr != ratingStr;
+			
+		if (needsUpdate) {
+			scoreTxt.text = '<  ${Options.getData('showScore') ? 'Score:${songScore} ~ ' : ''}Misses:${misses} ~ Accuracy:${accuracy}% ~ ${ratingStr}  >';
+			scoreTxt.screenCenter(X);
+			
+			lastSongScore = songScore;
+			lastMisses = misses;
+			lastAccuracy = accuracy;
+			lastRatingStr = ratingStr;
+			clearHUDDirty("score");
+		}
 	}
 
 	function toggleBotplay() {
 		Options.setData(!Options.getData("botplay"), "botplay");
 		set("bot", Options.getData("botplay"));
 		SONG.validScore = false;
+		
+		// HUD优化 - 标记脏状态
+		markHUDDirty("songInfo");
 		updateSongInfoText();
 	}
 
@@ -2920,49 +3101,143 @@ class PlayState extends MusicBeatState {
 				justPressedArray = [];
 				justReleasedArray = [];
 
-				previousReleased = releasedArray;
+				if (!playingReplay) {
+					previousReleased = releasedArray;
 
-				releasedArray = [];
-				heldArray = [];
+					releasedArray = [];
+					heldArray = [];
 
-				for (i in 0...binds.length) {
-					justPressedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.JUST_PRESSED);
-					releasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.RELEASED);
-					justReleasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.JUST_RELEASED);
-					heldArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.PRESSED);
+					for (i in 0...binds.length) {
+						justPressedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.JUST_PRESSED);
+						releasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.RELEASED);
+						justReleasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.JUST_RELEASED);
+						heldArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(binds[i]), FlxInputState.PRESSED);
 
-					if (releasedArray[i] && SONG.playerKeyCount == 4) {
-						justPressedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.JUST_PRESSED);
-						releasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.RELEASED);
-						justReleasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.JUST_RELEASED);
-						heldArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.PRESSED);
+						if (releasedArray[i] == true && SONG.playerKeyCount == 4) {
+							justPressedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.JUST_PRESSED);
+							releasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.RELEASED);
+							justReleasedArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.JUST_RELEASED);
+							heldArray[i] = FlxG.keys.checkStatus(FlxKey.fromString(bruhBinds[i]), FlxInputState.PRESSED);
+						}
+					}
+
+					for (i in 0...justPressedArray.length) {
+						if (justPressedArray[i] == true) {
+							replay.recordInput(i, "pressed");
+						}
+					};
+				} else {
+					for (inputIndex in 0...inputs.length) {
+						var input = inputs[inputIndex];
+
+						if (input != null) {
+							if (input[2] != 2 && Conductor.songPosition >= input[1]) {
+					if (input[2] == 1) {
+						justReleasedArray[input[0]] = true;
+						releasedArray[input[0]] = true;
+
+						justPressedArray[input[0]] = false;
+						heldArray[input[0]] = false;
+
+						playerStrums.members[input[0]].playAnim('static');
+						playerStrums.members[input[0]].resetAnim = 0;
+						
+						// 在播放回放时也记录输入，确保NoteGraph能显示数据
+						if (playingReplay) {
+							replay.recordInput(input[0], "released");
+						}
+					} else if (input[2] == 0) {
+						justPressedArray[input[0]] = true;
+						heldArray[input[0]] = true;
+
+						justReleasedArray[input[0]] = false;
+						releasedArray[input[0]] = false;
+
+						// 在播放回放时也记录输入，确保NoteGraph能显示数据
+						if (playingReplay) {
+							replay.recordInput(input[0], "pressed");
+						}
+
+						if (!Options.getData("ghostTapping"))
+							noteMiss(input[0]);
+					}
+
+								inputs.remove(input);
+							} else if (input[2] == 2 && Conductor.songPosition >= input[1] + input[3]) {
+								// 性能优化：直接遍历音符数组
+								var noteCount:Int = notes.length;
+								for (i in 0...noteCount) {
+									var note:Note = notes.members[i];
+									if (note == null || !note.alive) continue;
+
+									if (note.mustPress && FlxMath.roundDecimal(note.strumTime, 2) == FlxMath.roundDecimal(input[1], 2) && note.noteData == input[0]) {
+										justPressedArray[input[0]] = true;
+										heldArray[input[0]] = true;
+
+										justReleasedArray[input[0]] = false;
+										releasedArray[input[0]] = false;
+
+										if (characterPlayingAs == BF) {
+											if (boyfriend.otherCharacters == null || boyfriend.otherCharacters.length - 1 < note.character)
+												boyfriend.holdTimer = 0;
+											else if (note.characters.length <= 1)
+												boyfriend.otherCharacters[note.character].holdTimer = 0;
+											else {
+												for (char in note.characters) {
+													if (boyfriend.otherCharacters.length - 1 >= char)
+														boyfriend.otherCharacters[char].holdTimer = 0;
+												}
+											}
+										} else {
+											if (dad.otherCharacters == null || dad.otherCharacters.length - 1 < note.character)
+												dad.holdTimer = 0;
+											else if (note.characters.length <= 1)
+												dad.otherCharacters[note.character].holdTimer = 0;
+											else {
+												for (char in note.characters) {
+													if (dad.otherCharacters.length - 1 >= char)
+														dad.otherCharacters[char].holdTimer = 0;
+												}
+											}
+										}
+
+										goodNoteHit(note, input[3]);
+										break;
+									}
+								}
+
+								inputs.remove(input);
+							}
+						}
 					}
 				}
 
 				for (i in 0...justPressedArray.length) {
-					if (justPressedArray[i]) {
-						call("keyPressed", [i ?? justPressedArray.length]);
-					}
-				}
+					if (justPressedArray[i] == true)
+						call("keyPressed", [i]);
+				};
 
 				for (i in 0...releasedArray.length) {
-					if (releasedArray[i]) {
-						call("keyReleased", [i ?? justPressedArray.length]);
-					}
-				}
+					if (releasedArray[i] == true)
+						call("keyReleased", [i]);
+				};
 
-				if (justPressedArray.contains(true) && generatedMusic) {
+				if (justPressedArray.contains(true) && generatedMusic && !playingReplay) {
 					// variables
 					var possibleNotes:Array<Note> = [];
 					var dontHit:Array<Note> = [];
 
-					// notes you can hit lol
-					notes.forEachAlive(function(note:Note) {
+					// 性能优化：直接遍历音符数组
+					var noteCount:Int = notes.length;
+					for (i in 0...noteCount) {
+						var note:Note = notes.members[i];
+						if (note == null || !note.alive) continue;
+
 						note.calculateCanBeHit();
 
 						if (note.canBeHit && note.mustPress && !note.tooLate && !note.isSustainNote)
 							possibleNotes.push(note);
-					});
+					}
 
 					if (Options.getData("inputSystem") == "rhythm")
 						possibleNotes.sort((b, a) -> Std.int(Conductor.songPosition - a.strumTime));
@@ -3051,11 +3326,17 @@ class PlayState extends MusicBeatState {
 				}
 
 				if (heldArray.contains(true) && generatedMusic) {
-					notes.forEachAlive(function(note:Note) {
-						note.calculateCanBeHit();
+					// 性能优化：直接遍历音符数组
+					var noteCount:Int = notes.length;
+					for (i in 0...noteCount) {
+						var note:Note = notes.members[i];
+						if (note == null || !note.alive) continue;
 
 						if (heldArray[note.noteData] && note.isSustainNote && note.mustPress) {
-							if (note.canBeHit) {
+							// goodness this if statement is shit lmfao
+							if (((note.strumTime <= Conductor.songPosition && note.shouldHit) ||
+								(!note.shouldHit && (note.strumTime > (Conductor.songPosition - (Conductor.safeZoneOffset * 0.4))
+									&& note.strumTime < (Conductor.songPosition + Conductor.safeZoneOffset * 0.2))))) {
 								if (characterPlayingAs == BF) {
 									if (boyfriend.otherCharacters == null || boyfriend.otherCharacters.length - 1 < note.character)
 										boyfriend.holdTimer = 0;
@@ -3083,7 +3364,7 @@ class PlayState extends MusicBeatState {
 								goodNoteHit(note);
 							}
 						}
-					});
+					}
 				}
 
 				if (characterPlayingAs == BF) {
@@ -3119,19 +3400,32 @@ class PlayState extends MusicBeatState {
 					}
 				}
 
-				playerStrums.forEach(function(spr:StrumNote) {
+				// 性能优化：直接遍历 playerStrums 数组
+				var playerCount:Int = playerStrums.length;
+				for (k in 0...playerCount) {
+					var spr:StrumNote = playerStrums.members[k];
+					if (spr == null) continue;
+
 					if (justPressedArray[spr.ID] && spr.animation.curAnim.name != 'confirm') {
 						spr.playAnim('pressed');
 						spr.resetAnim = 0;
 					}
 
-					if (releasedArray[spr.ID]) {
-						spr.playAnim('static');
-						spr.resetAnim = 0;
-					}
-				});
+				if (releasedArray[spr.ID]) {
+					if (spr.animation.curAnim.name != "static")
+						replay.recordInput(spr.ID, "released");
+
+					spr.playAnim('static');
+					spr.resetAnim = 0;
+				}
+				}
 			} else {
-				notes.forEachAlive(function(note:Note) {
+				// 性能优化：直接遍历音符数组
+				var noteCount:Int = notes.length;
+				for (i in 0...noteCount) {
+					var note:Note = notes.members[i];
+					if (note == null || !note.alive) continue;
+
 					if (note.shouldHit) {
 						if (note.mustPress && note.strumTime <= Conductor.songPosition) {
 							if (characterPlayingAs == BF) {
@@ -3161,13 +3455,18 @@ class PlayState extends MusicBeatState {
 							goodNoteHit(note);
 						}
 					}
-				});
+				};
 
-				playerStrums.forEach(function(spr:StrumNote) {
+				// 性能优化：直接遍历 playerStrums 数组
+				var playerCount:Int = playerStrums.length;
+				for (k in 0...playerCount) {
+					var spr:StrumNote = playerStrums.members[k];
+					if (spr == null) continue;
+
 					if (spr.animation.finished) {
 						spr.playAnim("static");
 					}
-				});
+				}
 
 				if (characterPlayingAs == BF) {
 					if (boyfriend.otherCharacters == null) {
@@ -3270,6 +3569,9 @@ class PlayState extends MusicBeatState {
 			}
 
 			calculateAccuracy();
+			
+		// HUD优化 - 标记脏状态
+		markHUDDirty("score");
 
 			call("playerOneMiss", [
 				direction,
@@ -3340,7 +3642,12 @@ class PlayState extends MusicBeatState {
 			}
 
 			if (startedCountdown) {
-				playerStrums.forEach(function(spr:StrumNote) {
+				// 性能优化：直接遍历 playerStrums 数组
+				var playerCount:Int = playerStrums.length;
+				for (k in 0...playerCount) {
+					var spr:StrumNote = playerStrums.members[k];
+					if (spr == null) continue;
+					
 					if (Math.abs(note.noteData) == spr.ID) {
 						spr.playAnim('confirm', true);
 						if (note.colorSwap != null) {
@@ -3349,7 +3656,7 @@ class PlayState extends MusicBeatState {
 							spr.colorSwap.b = note.colorSwap.b;
 						}
 					}
-				});
+				}
 			}
 
 			if (note.shouldHit && !note.isSustainNote) {
@@ -3364,6 +3671,8 @@ class PlayState extends MusicBeatState {
 				health -= note.hitDamage;
 				misses++;
 				missSounds[FlxG.random.int(0, missSounds.length - 1)].play(true);
+
+			replay.recordKeyHit(note.noteData % SONG.playerKeyCount, note.strumTime, (setNoteDiff != null ? setNoteDiff : note.strumTime - Conductor.songPosition));
 			}
 
 			note.wasGoodHit = true;
@@ -3444,14 +3753,20 @@ class PlayState extends MusicBeatState {
 			camHUD.zoom += 0.03 * cameraZoomStrength;
 		}
 
+		// HUD优化 - 立即更新图标scale
 		iconP1.scale.add(0.2 * iconP1.startSize, 0.2 * iconP1.startSize);
 		iconP2.scale.add(0.2 * iconP2.startSize, 0.2 * iconP2.startSize);
+		iconP1.updateHitbox();
+		iconP2.updateHitbox();
 
 		var iconOffset:Int = 26;
 
-		iconP1.x = healthBar.x + (healthBar.width * (FlxMath.remapToRange(healthBar.percent, 0, 100, 100, 0) * 0.01) - iconOffset) - iconP1.offsetX;
+		// HUD优化 - 使用缓存的health百分比计算
+		var healthPercentMapped:Float = FlxMath.remapToRange(healthBar.percent, 0, 100, 100, 0) * 0.01;
+		
+		iconP1.x = healthBar.x + (healthBar.width * healthPercentMapped - iconOffset) - iconP1.offsetX;
 		iconP2.x = healthBar.x
-			+ (healthBar.width * (FlxMath.remapToRange(healthBar.percent, 0, 100, 100, 0) * 0.01))
+			+ (healthBar.width * healthPercentMapped)
 			- (iconP2.width - iconOffset)
 			- iconP2.offsetX;
 
@@ -3502,6 +3817,20 @@ class PlayState extends MusicBeatState {
 
 		var res:ResultsSubstate = new ResultsSubstate(replay);
 		openSubState(res);
+	}
+	
+	var savedReplay:Bool = false;
+	public function saveReplay() {
+		if (!playingReplay && !savedReplay) {
+			savedReplay = true;
+
+			var time = Date.now().getTime();
+			var json:String = Json.stringify(replay.convertToSwag());
+
+			#if sys
+			sys.io.File.saveContent("assets/replays/replay-" + SONG.song.toLowerCase() + "-" + storyDifficultyStr.toLowerCase() + "-" + time + ".json", json);
+			#end
+		}
 	}
 
 	function getRatingText():String {
