@@ -1065,6 +1065,13 @@ class PlayState extends MusicBeatState {
 		iconP2.cameras = [camHUD];
 		scoreTxt.cameras = [camHUD];
 
+		// Add break timer if enabled
+		if (Options.getData("breakTimer")) {
+			var noteTimer:ui.NoteTimer = new ui.NoteTimer(this);
+			noteTimer.cameras = [camHUD];
+			add(noteTimer);
+		}
+
 		startingSong = true;
 
 		// WINDOW TITLE POG
@@ -1958,30 +1965,58 @@ class PlayState extends MusicBeatState {
 		var iconLerp:Float = elapsed * 9;
 		var zoomLerp:Float = (elapsed * 3) * cameraZoomSpeed;
 
-		// HUD优化 - 缓存当前scale值，减少重复计算
-		var p1TargetX:Float = FlxMath.lerp(iconP1.scale.x, iconP1.startSize, iconLerp * songMultiplier);
-		var p1TargetY:Float = FlxMath.lerp(iconP1.scale.y, iconP1.startSize, iconLerp * songMultiplier);
-		var p2TargetX:Float = FlxMath.lerp(iconP2.scale.x, iconP2.startSize, iconLerp * songMultiplier);
-		var p2TargetY:Float = FlxMath.lerp(iconP2.scale.y, iconP2.startSize, iconLerp * songMultiplier);
+		// 根据设置选择图标缩小模式
+		var bounceStyle:String = Options.getData("iconBounceStyle");
+		var p1ScaleChanged:Bool = false;
+		var p2ScaleChanged:Bool = false;
+		
+		if (bounceStyle == "old") {
+			// 老版本缩小逻辑：使用固定更新频率平滑缩小
+			var icon_Zoom_Lerp:Float = 0.1 / ((Main.display != null ? Main.display.framerate : 60) / 60);
+			
+			var p1TargetX:Float = FlxMath.lerp(iconP1.scale.x, 1, icon_Zoom_Lerp * songMultiplier);
+			var p1TargetY:Float = FlxMath.lerp(iconP1.scale.y, 1, icon_Zoom_Lerp * songMultiplier);
+			var p2TargetX:Float = FlxMath.lerp(iconP2.scale.x, 1, icon_Zoom_Lerp * songMultiplier);
+			var p2TargetY:Float = FlxMath.lerp(iconP2.scale.y, 1, icon_Zoom_Lerp * songMultiplier);
+			
+			p1ScaleChanged = Math.abs(iconP1.scale.x - p1TargetX) > 0.001 || Math.abs(iconP1.scale.y - p1TargetY) > 0.001;
+			p2ScaleChanged = Math.abs(iconP2.scale.x - p2TargetX) > 0.001 || Math.abs(iconP2.scale.y - p2TargetY) > 0.001;
+			
+			if (p1ScaleChanged) {
+				iconP1.scale.set(p1TargetX, p1TargetY);
+				iconP1.updateHitbox();
+			}
+			
+			if (p2ScaleChanged) {
+				iconP2.scale.set(p2TargetX, p2TargetY);
+				iconP2.updateHitbox();
+			}
+		} else {
+			// 新版本缩小逻辑：使用原有的lerp方式
+			var p1TargetX:Float = FlxMath.lerp(iconP1.scale.x, iconP1.startSize, iconLerp * songMultiplier);
+			var p1TargetY:Float = FlxMath.lerp(iconP1.scale.y, iconP1.startSize, iconLerp * songMultiplier);
+			var p2TargetX:Float = FlxMath.lerp(iconP2.scale.x, iconP2.startSize, iconLerp * songMultiplier);
+			var p2TargetY:Float = FlxMath.lerp(iconP2.scale.y, iconP2.startSize, iconLerp * songMultiplier);
 
-		// 只在scale变化显著时更新
-		var p1ScaleChanged:Bool = Math.abs(iconP1.scale.x - p1TargetX) > 0.001 || Math.abs(iconP1.scale.y - p1TargetY) > 0.001;
-		var p2ScaleChanged:Bool = Math.abs(iconP2.scale.x - p2TargetX) > 0.001 || Math.abs(iconP2.scale.y - p2TargetY) > 0.001;
+			// 只在scale变化显著时更新
+			p1ScaleChanged = Math.abs(iconP1.scale.x - p1TargetX) > 0.001 || Math.abs(iconP1.scale.y - p1TargetY) > 0.001;
+			p2ScaleChanged = Math.abs(iconP2.scale.x - p2TargetX) > 0.001 || Math.abs(iconP2.scale.y - p2TargetY) > 0.001;
 
-		if (p1ScaleChanged) {
-			iconP1.scale.set(
-				Math.min(p1TargetX, iconP1.startSize + 0.2 * iconP1.startSize),
-				Math.min(p1TargetY, iconP1.startSize + 0.2 * iconP1.startSize)
-			);
-			iconP1.updateHitbox();
-		}
+			if (p1ScaleChanged) {
+				iconP1.scale.set(
+					Math.min(p1TargetX, iconP1.startSize + 0.2 * iconP1.startSize),
+					Math.min(p1TargetY, iconP1.startSize + 0.2 * iconP1.startSize)
+				);
+				iconP1.updateHitbox();
+			}
 
-		if (p2ScaleChanged) {
-			iconP2.scale.set(
-				Math.min(p2TargetX, iconP2.startSize + 0.2 * iconP2.startSize),
-				Math.min(p2TargetY, iconP2.startSize + 0.2 * iconP2.startSize)
-			);
-			iconP2.updateHitbox();
+			if (p2ScaleChanged) {
+				iconP2.scale.set(
+					Math.min(p2TargetX, iconP2.startSize + 0.2 * iconP2.startSize),
+					Math.min(p2TargetY, iconP2.startSize + 0.2 * iconP2.startSize)
+				);
+				iconP2.updateHitbox();
+			}
 		}
 
 		var iconOffset:Float = 26.0;
@@ -3753,9 +3788,32 @@ class PlayState extends MusicBeatState {
 			camHUD.zoom += 0.03 * cameraZoomStrength;
 		}
 
-		// HUD优化 - 立即更新图标scale
-		iconP1.scale.add(0.2 * iconP1.startSize, 0.2 * iconP1.startSize);
-		iconP2.scale.add(0.2 * iconP2.startSize, 0.2 * iconP2.startSize);
+		// 根据设置选择图标跳动模式
+		var bounceStyle:String = Options.getData("iconBounceStyle");
+		if (bounceStyle == "old") {
+			// 老版本跳动逻辑：增加图标尺寸
+			var p1StartWidth:Float = iconP1.width / iconP1.scale.x;
+			var p1StartHeight:Float = iconP1.height / iconP1.scale.y;
+			var p2StartWidth:Float = iconP2.width / iconP2.scale.x;
+			var p2StartHeight:Float = iconP2.height / iconP2.scale.y;
+			
+			iconP1.scale.add((30 / (songMultiplier < 1 ? 1 : songMultiplier)) / p1StartWidth, (30 / (songMultiplier < 1 ? 1 : songMultiplier)) / p1StartHeight);
+			iconP2.scale.add((30 / (songMultiplier < 1 ? 1 : songMultiplier)) / p2StartWidth, (30 / (songMultiplier < 1 ? 1 : songMultiplier)) / p2StartHeight);
+			
+			// 限制图标尺寸不超过初始尺寸+30像素
+			iconP1.scale.set(
+				Math.min(iconP1.scale.x, 1 + (30 / p1StartWidth)),
+				Math.min(iconP1.scale.y, 1 + (30 / p1StartHeight))
+			);
+			iconP2.scale.set(
+				Math.min(iconP2.scale.x, 1 + (30 / p2StartWidth)),
+				Math.min(iconP2.scale.y, 1 + (30 / p2StartHeight))
+			);
+		} else {
+			// 新版本跳动逻辑：增加0.2倍原始尺寸
+			iconP1.scale.add(0.2 * iconP1.startSize, 0.2 * iconP1.startSize);
+			iconP2.scale.add(0.2 * iconP2.startSize, 0.2 * iconP2.startSize);
+		}
 		iconP1.updateHitbox();
 		iconP2.updateHitbox();
 

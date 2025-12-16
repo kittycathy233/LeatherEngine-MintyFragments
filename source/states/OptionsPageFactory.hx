@@ -248,6 +248,7 @@ class OptionsPageFactory {
 			new BoolOption("Enemy Note Splashes", "opponentNoteSplashes",
 				"When toggled, note splashes will show up\nwhen the enemy hits a \"sick\" or higher rating."),
 			new BoolOption("Note Accuracy Text", "displayMs", "Toggles a text popup showing how early or late you hit a note."),
+			new StringSaveOption("Icon Bounce Style", ["new", "old"], "iconBounceStyle", "Change the style of icon bounce animation.\n\"new\" = New engine style, \"old\" = v0.4.2 style"),
 			new GameSubStateOption("Note Colors", substates.NoteColorSubstate, "Change the colors of notes."),
 			new BoolOption("Color Quantization", "colorQuantization", "When toggled, note colors will be changed depending on the beat."),
 			new GameSubStateOption("UI Skin", substates.UISkinSelect, "Change the UI skin for notes and menus.")
@@ -266,7 +267,9 @@ class OptionsPageFactory {
 			new BoolOption("Camera Bounce", "cameraZooms", "When toggled, the game and hud will zoom in on beat."),
 			new BoolOption("Flashing Lights", "flashingLights", "Toggles flashing lights."),
 			new BoolOption("Screen Shake", "screenShakes", "Toggles screen shake effects."),
-			new BoolOption("Shaders", "shaders", "Toggles shaders.")
+			new BoolOption("Shaders", "shaders", "Toggles shaders."),
+			new BoolOption("Break Timer", "breakTimer", "When toggled, shows a countdown timer\nduring breaks between notes."),
+			new StringSaveOption("Break Timer Style", ["circle", "bar"], "breakTimerStyle", "Change the visual style of the break timer.\n'circle' = Circular progress,\n'bar' = Rectangular progress bar.")
 		]);
 	}
 

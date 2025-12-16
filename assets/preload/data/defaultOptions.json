@@ -368,6 +368,18 @@
 		{
 			"option": "customRatingsOffset",
 			"value": [0, 0]
+		},
+		{
+			"option": "iconBounceStyle",
+			"value": "new"
+		},
+		{
+			"option": "breakTimer",
+			"value": true
+		},
+		{
+			"option": "breakTimerStyle",
+			"value": "circle"
 		}
 	]
 }
