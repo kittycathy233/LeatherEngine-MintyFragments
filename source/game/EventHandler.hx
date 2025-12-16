@@ -259,6 +259,9 @@ class EventHandler {
 					modcharting.NoteMovement.getDefaultStrumPos(game);
 					#end
 					
+					// 更新KeyMonitor以适应新的按键数量
+					updateKeyMonitor(game, newPlayerKeyCount);
+					
 					// 延迟设置Lua变量，避免音频干扰
 					FlxTimer.wait(0.002, function() {
 						#if LUA_ALLOWED
@@ -503,5 +506,21 @@ class EventHandler {
 			});
 		}
 		#end
+	}
+	
+	/**
+	 * 更新KeyMonitor以适应新的按键数量
+	 */
+	private static function updateKeyMonitor(game:PlayState, newPlayerKeyCount:Int):Void {
+		if (game.keyMonitor != null) {
+			// 移除旧的KeyMonitor
+			game.remove(game.keyMonitor);
+			game.keyMonitor.destroy();
+			
+			// 创建新的KeyMonitor
+			var newBinds:Array<String> = Options.getData("binds", "binds")[newPlayerKeyCount - 1];
+			game.keyMonitor = new ui.KeyMonitor(newPlayerKeyCount, newBinds);
+			game.add(game.keyMonitor);
+		}
 	}
 }

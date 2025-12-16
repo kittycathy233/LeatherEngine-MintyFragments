@@ -596,6 +596,11 @@ class PlayState extends MusicBeatState {
 
 	public static var playingReplay:Bool = false;
 
+	/**
+	 * Key monitor for displaying real-time key presses
+	 */
+	var keyMonitor:ui.KeyMonitor;
+
 		public function new(?_replay:Replay)
 	{
 		super();
@@ -1070,6 +1075,12 @@ class PlayState extends MusicBeatState {
 			var noteTimer:ui.NoteTimer = new ui.NoteTimer(this);
 			noteTimer.cameras = [camHUD];
 			add(noteTimer);
+		}
+
+		// Add key monitor if enabled
+		if (Options.getData("keyMonitor")) {
+			keyMonitor = new ui.KeyMonitor(SONG.playerKeyCount, binds);
+			add(keyMonitor);
 		}
 
 		startingSong = true;

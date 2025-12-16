@@ -380,6 +380,10 @@
 		{
 			"option": "breakTimerStyle",
 			"value": "circle"
+		},
+		{
+			"option": "keyMonitor",
+			"value": true
 		}
 	]
 }
