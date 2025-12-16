@@ -3,15 +3,15 @@ echo Installing all required libraries.
 
 REM haxelib --global update haxelib
 REM haxelib fixrepo
-haxelib git hxcpp https://github.com/FunkinCrew/hxcpp
+haxelib git hxcpp https://github.com/kittycathy114/hxcpp-LEC
 haxelib install format
 haxelib install hxp
 haxelib install hxWindowColorMode 0.2.1
 haxelib install haxeui-core
 haxelib install haxeui-flixel
 haxelib --skip-dependencies git lime https://github.com/swordcubes-grave-of-shite/lime
-haxelib --skip-dependencies git openfl https://github.com/swordcubes-grave-of-shite/openfl
-haxelib --skip-dependencies git flixel https://github.com/swordcubes-grave-of-shite/flixel dev
+haxelib --skip-dependencies git openfl https://github.com/kittycathy114/openfl-LEC
+haxelib --skip-dependencies git flixel https://github.com/kittycathy114/flixel-LEC dev
 haxelib --skip-dependencies git flixel-addons https://github.com/swordcubes-grave-of-shite/flixel-addons dev
 haxelib --skip-dependencies git flixel-ui https://github.com/swordcubes-grave-of-shite/flixel-ui dev
 haxelib git linc_luajit https://github.com/Leather128/linc_luajit.git
