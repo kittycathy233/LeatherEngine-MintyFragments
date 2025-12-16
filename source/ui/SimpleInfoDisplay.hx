@@ -57,19 +57,19 @@ class SimpleInfoDisplay extends TextField {
 	private function onEnterFrame(e:Event):Void {
 		_framesPassed++;
 
-		final deltaTime:Float = Math.max(System.getTimerPrecise() - _previousTime, 0);
+		final deltaTime:Float = Math.max(System.getTimer() - _previousTime, 0);
 		_updateClock += deltaTime;
 
 		if (_updateClock >= 1000) {
-			framerate = (FlxG.drawFramerate > 0) ? FlxMath.minInt(_framesPassed, FlxG.drawFramerate) : _framesPassed;
+			framerate = (FlxG.drawFramerate > 0) ? Math.round(Math.min(_framesPassed, FlxG.drawFramerate)) : _framesPassed;
 			if (canLie) {
-				framerate = FlxMath.boundInt(framerate, 0, Options.getData("maxFPS")); // make sure the counter doesn't go above your max fps
+				framerate = Math.round(Math.max(Math.min(framerate, Options.getData("maxFPS")), 0)); // make sure the counter doesn't go above your max fps
 			}
 
 			_framesPassed = 0;
 			_updateClock = 0;
 		}
-		_previousTime = System.getTimerPrecise();
+		_previousTime = System.getTimer();
 
 		if (!visible) {
 			return;
