@@ -384,6 +384,10 @@
 		{
 			"option": "keyMonitor",
 			"value": true
+		},
+		{
+			"option": "realtimeDelayGraph",
+			"value": false
 		}
 	]
 }

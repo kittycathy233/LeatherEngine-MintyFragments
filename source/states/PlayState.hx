@@ -601,6 +601,11 @@ class PlayState extends MusicBeatState {
 	 */
 	var keyMonitor:ui.KeyMonitor;
 
+	/**
+	 * Realtime delay graph for visualizing note timing
+	 */
+	var realtimeDelayGraph:ui.RealtimeDelayGraph;
+
 		public function new(?_replay:Replay)
 	{
 		super();
@@ -1081,6 +1086,13 @@ class PlayState extends MusicBeatState {
 		if (Options.getData("keyMonitor")) {
 			keyMonitor = new ui.KeyMonitor(SONG.playerKeyCount, binds);
 			add(keyMonitor);
+		}
+
+		// Add realtime delay graph if enabled
+		if (Options.getData("realtimeDelayGraph")) {
+			realtimeDelayGraph = new ui.RealtimeDelayGraph(FlxG.width / 2 - 150, FlxG.height - 40);
+			realtimeDelayGraph.cameras = [camHUD];
+			add(realtimeDelayGraph);
 		}
 
 		startingSong = true;
@@ -2857,6 +2869,11 @@ class PlayState extends MusicBeatState {
 		noteDiff ??= setNoteDiff;
 
 		replay.recordKeyHit(noteData, strumtime, noteDiff);
+
+		// Add delay bar to realtime graph
+		if (realtimeDelayGraph != null && noteDiff != null) {
+			realtimeDelayGraph.addDelayBar(noteDiff, strumtime, songLength);
+		}
 
 		if (vocals != null)
 			vocals.volume = 1;

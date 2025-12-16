@@ -269,7 +269,9 @@ class OptionsPageFactory {
 			new BoolOption("Screen Shake", "screenShakes", "Toggles screen shake effects."),
 			new BoolOption("Shaders", "shaders", "Toggles shaders."),
 			new BoolOption("Break Timer", "breakTimer", "When toggled, shows a countdown timer\nduring breaks between notes."),
-			new StringSaveOption("Break Timer Style", ["circle", "bar"], "breakTimerStyle", "Change the visual style of the break timer.\n'circle' = Circular progress,\n'bar' = Rectangular progress bar.")
+			new StringSaveOption("Break Timer Style", ["circle", "bar"], "breakTimerStyle", "Change the visual style of the break timer.\n'circle' = Circular progress,\n'bar' = Rectangular progress bar."),
+			new BoolOption("Key Monitor", "keyMonitor", "Shows real-time key presses on screen."),
+			new BoolOption("Realtime Delay Graph", "realtimeDelayGraph", "Shows a real-time graph of note timing accuracy at the bottom of the screen.")
 		]);
 	}
 
