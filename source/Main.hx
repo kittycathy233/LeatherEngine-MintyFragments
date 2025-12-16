@@ -1,7 +1,7 @@
 package;
 
 import lime.system.System;
-import lime.utils.LogLevel;
+
 import haxe.PosInfos;
 import flixel.util.FlxSignal.FlxTypedSignal;
 import flixel.FlxG;
@@ -17,7 +17,7 @@ import openfl.errors.Error;
 import openfl.events.ErrorEvent;
 import openfl.events.UncaughtErrorEvent;
 import openfl.text.TextFormat;
-import openfl.utils._internal.Log as OpenFLLog;
+
 import states.TitleState;
 import ui.SimpleInfoDisplay;
 import ui.logs.Logs;
@@ -68,7 +68,6 @@ class Main extends Sprite {
 
 		CoolUtil.haxe_trace = Log.trace;
 		Log.trace = CoolUtil.haxe_print;
-		OpenFLLog.throwErrors = false;
 
 		FlxG.signals.preStateSwitch.add(() -> {
 			Main.previousState = FlxG.state;
@@ -86,36 +85,6 @@ class Main extends Sprite {
 		LogStyle.WARNING.onLog.add((data:Any, ?infos:PosInfos) -> CoolUtil.print(data, WARNING, infos));
 		LogStyle.ERROR.onLog.add((data:Any, ?infos:PosInfos) -> CoolUtil.print(data, ERROR, infos));
 		LogStyle.NOTICE.onLog.add((data:Any, ?infos:PosInfos) -> CoolUtil.print(data, LOG, infos));
-
-		OpenFLLog.debug = (message:Dynamic, ?infos:PosInfos) -> {
-			if (OpenFLLog.level >= LogLevel.DEBUG) {
-				CoolUtil.print(message, DEBUG, infos);
-			}
-		};
-
-		OpenFLLog.error = (message:Dynamic, ?infos:PosInfos) -> {
-			if (OpenFLLog.level >= LogLevel.ERROR) {
-				CoolUtil.print(message, ERROR, infos);
-			}
-		};
-
-		OpenFLLog.info = (message:Dynamic, ?infos:PosInfos) -> {
-			if (OpenFLLog.level >= LogLevel.INFO) {
-				CoolUtil.print(message, LOG, infos);
-			}
-		};
-
-		OpenFLLog.warn = (message:Dynamic, ?infos:PosInfos) -> {
-			if (OpenFLLog.level >= LogLevel.WARN) {
-				CoolUtil.print(message, WARNING, infos);
-			}
-		};
-
-		OpenFLLog.verbose = (message:Dynamic, ?infos:PosInfos) -> {
-			if (OpenFLLog.level >= LogLevel.VERBOSE) {
-				CoolUtil.print(message, LOG, infos);
-			}
-		};
 
 		display = new SimpleInfoDisplay(8, 3, 0xFFFFFF, "_sans");
 		addChild(display);
