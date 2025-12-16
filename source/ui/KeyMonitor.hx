@@ -39,8 +39,8 @@ class KeyMonitor extends FlxSpriteGroup
     private var pressedTextColor:FlxColor = FlxColor.WHITE;
     
     // 缩放范围定义
-    private var minScale:Float = 1.0;
-    private var maxScale:Float = 1.5;
+    private var minScale:Float = 0.7;
+    private var maxScale:Float = 1.3;
     
     public function new(keyCount:Int, binds:Array<String>)
     {
@@ -264,19 +264,19 @@ class KeyMonitor extends FlxSpriteGroup
             
             // 设置目标缩放值
             if (isPressed && !wasPressed) {
-                // 按键刚被按下 - 设置最大缩放
-                keyScales[i] = maxScale;
-                keyBackgrounds[i].scale.set(maxScale, maxScale);
+                // 按键刚被按下 - 设置最大小缩放
+                keyScales[i] = minScale;
+                keyBackgrounds[i].scale.set(minScale, minScale);
             } else if (!isPressed && wasPressed) {
                 // 按键刚被释放 - 恢复默认缩放
-                keyScales[i] = minScale;
+                keyScales[i] = 1;
             } else if (isPressed) {
                 // 按住时设置中等缩放
-                keyScales[i] = 1.15;
+                keyScales[i] = 0.88;
             }
             
             // 平滑过渡到目标缩放值
-            var lerpSpeed:Float = 0.15; // lerp速度，值越小越慢
+            var lerpSpeed:Float = 0.1; // lerp速度，值越小越慢
             keyBackgrounds[i].scale.x = flixel.math.FlxMath.lerp(keyBackgrounds[i].scale.x, keyScales[i], lerpSpeed);
             keyBackgrounds[i].scale.y = flixel.math.FlxMath.lerp(keyBackgrounds[i].scale.y, keyScales[i], lerpSpeed);
             
