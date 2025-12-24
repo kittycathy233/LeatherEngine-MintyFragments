@@ -32,7 +32,7 @@ class OptionsMenu extends MusicBeatState {
 			new PageOption("Back", "Categories", "Go back to the main menu."),
 			new GameSubStateOption("Binds", substates.ControlMenuSubstate, "Change key bindings."),
 			new BoolOption("Key Bind Reminders", "extraKeyReminders", "Should key binding reminders show up\nwhen playing a non-4-key song."),
-			new GameSubStateOption("Song Offset", substates.SongOffsetMenu, "Change the offset of the song."),
+			new PageOption("Song Offset", "Song Offset", "Adjust song timing offset for perfect note synchronization.\nChoose between legacy and new adjustment methods."),
 			new PageOption("Judgements", "Judgements", "Change settings related to judgments.\n(sick, good, bad, etc.)"),
 			new PageOption("Input Options", "Input Options", "Change options related to note inputs."),
 			new BoolOption("Downscroll", "downscroll", "Toggle downscroll."),
@@ -44,6 +44,11 @@ class OptionsMenu extends MusicBeatState {
 			new BoolOption("Use Custom Scrollspeed", "useCustomScrollSpeed", "When toggled, a custom scroll speed will be used."),
 			new GameSubStateOption("Custom Scroll Speed", substates.ScrollSpeedMenu, "Change the value of the custom scroll speed."),
 			new StringSaveOption("Hitsound", CoolUtil.coolTextFile(Paths.txt("hitsoundList")), "hitsound", "Change the hitsound used when hitting a note.")
+		],
+		"Song Offset" => [
+			new PageOption("Back", "Gameplay", "Go back to gameplay options."),
+			new GameSubStateOption("Legacy", substates.SongOffsetMenu, "Traditional song offset adjustment interface.\nSimple and proven offset setting method."),
+			new GameStateOption("New (WIP)", SongOffsetState, "Advanced song offset adjustment with visual preview.\nFeatures real-time visual feedback and enhanced controls."),
 		]
 		// 其他页面将通过懒加载机制按需初始化
 	];
@@ -154,7 +159,18 @@ class OptionsMenu extends MusicBeatState {
 
 	public function goBack() {
 		if (pageName != defaultPage) {
-			loadPage((cast(page.members[0], PageOption).pageName) ?? "Categories");
+			var backPageName = "Categories";
+			
+			if (page.members.length > 0) {
+				var firstOption = page.members[0];
+				if (firstOption is PageOption) {
+					backPageName = (cast(firstOption, PageOption)).pageName;
+				} else {
+					backPageName = "Gameplay";
+				}
+			}
+			
+			loadPage(backPageName);
 			return;
 		}
 

@@ -21,7 +21,7 @@ class RealtimeDelayGraph extends FlxSpriteGroup {
 	/**
 	 * 图表高度
 	 */
-	static inline final GRAPH_HEIGHT:Int = 15;
+	static inline final GRAPH_HEIGHT:Int = 6;
 	
 	/**
 	 * 中心线位置
@@ -31,7 +31,7 @@ class RealtimeDelayGraph extends FlxSpriteGroup {
 	/**
 	 * 判定条宽度
 	 */
-	public static inline final BAR_WIDTH:Int = 6;
+	public static inline final BAR_WIDTH:Int = 4;
 	
 	/**
 	 * 判定条显示时间（秒）
@@ -71,8 +71,8 @@ class RealtimeDelayGraph extends FlxSpriteGroup {
 	public function new(x:Float, y:Float) {
 		super(x, y);
 		
-		// 设置整体不透明度为0.8
-		this.alpha = 0.8;
+		// 设置整体不透明度为0.7
+		this.alpha = 0.7;
 		
 		// 加载判定设置
 		updateJudgementTimings();

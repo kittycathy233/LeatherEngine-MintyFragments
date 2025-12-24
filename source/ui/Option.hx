@@ -77,7 +77,7 @@ class BoolOption extends Option {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (FlxG.keys.justPressed.ENTER && alphabetText.targetY == 0)
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && alphabetText.targetY == 0)
 			changeValue();
 	}
 
@@ -131,7 +131,12 @@ class PageOption extends Option {
 	public var pageName:String = "Categories";
 
 	override public function new(optionName:String, pageName:String = "Categories", optionDescription:String = "") {
-		super(optionName, pageName, optionDescription);
+		// 为页面选项名称添加两个点，但排除Back选项和避免重复添加
+		var displayName = optionName;
+		if (optionName != "Back" && !StringTools.endsWith(optionName, "..")) {
+			displayName = optionName + "..";
+		}
+		super(displayName, pageName, optionDescription);
 
 		// SETTING VALUES //
 		this.pageName = pageName;
@@ -140,7 +145,7 @@ class PageOption extends Option {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (FlxG.keys.justPressed.ENTER && Std.int(alphabetText.targetY) == 0 && !OptionsMenu.instance.inMenu) {
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && Std.int(alphabetText.targetY) == 0 && !OptionsMenu.instance.inMenu) {
 			OptionsMenu?.instance?.loadPage(pageName ?? "Categories");
 		}
 	}
@@ -159,7 +164,7 @@ class GameSubStateOption extends Option {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (FlxG.keys.justPressed.ENTER && alphabetText.targetY == 0)
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && alphabetText.targetY == 0)
 			if (gameSubState is Class) {
 				FlxG.state.openSubState(Type.createInstance(cast gameSubState, []));
 			} else {
@@ -185,7 +190,7 @@ class GameStateOption extends Option {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (FlxG.keys.justPressed.ENTER && alphabetText.targetY == 0) {
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && alphabetText.targetY == 0) {
 			if (gameState is Class) {
 				FlxG.switchState(Type.createInstance(cast this.gameState, []));
 			} else {
@@ -239,7 +244,7 @@ class ModOption extends FlxSpriteContainer {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (FlxG.keys.justPressed.ENTER && alphabetText.targetY == 0) {
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && alphabetText.targetY == 0) {
 			if (optionValue == Options.getData("curMod")) {
 				CoolUtil.coolError("Leather Engine Mods", optionValue + " is your current mod\nPlease switch to a different mod to disable it!");
 				FlxTween.color(this, 1, 0xFFFF0000, 0xFFFFFFFF, {ease: FlxEase.quartOut});
@@ -294,7 +299,7 @@ class ChangeModOption extends FlxSpriteContainer {
 
 		if (alphabetText.targetY == 0) {
 			alpha = 1;
-			if (FlxG.keys.justPressed.ENTER) {
+			if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
 				Options.setData(optionValue, "curMod");
 				modEnabled = !modEnabled;
 				if (FlxG.state is TitleState)
@@ -365,7 +370,7 @@ class StringSaveOption extends Option {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (FlxG.keys.justPressed.ENTER && Std.int(alphabetText.targetY) == 0 && !OptionsMenu.instance.inMenu) {
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && Std.int(alphabetText.targetY) == 0 && !OptionsMenu.instance.inMenu) {
 			var prevIndex = modes.indexOf(currentMode);
 
 			if (prevIndex != -1) {
@@ -394,6 +399,15 @@ class StringSaveOption extends Option {
 
 	function setData() {
 		Options.setData(currentMode, saveDataName, optionSaveKey);
+	}
+}
+
+/**
+ * Enum Option - 用于在多个预定义选项之间切换的选择器
+ */
+class EnumOption extends StringSaveOption {
+	override public function new(optionName:String, modes:Array<String>, saveDataName:String, optionDescription:String = "", optionSaveKey:String = "main") {
+		super(optionName, modes, saveDataName, optionDescription, optionSaveKey);
 	}
 }
 
@@ -503,7 +517,7 @@ class OpenUrlOption extends Option {
 
 	override function update(elapsed:Float) {
 		super.update(elapsed);
-		if (FlxG.keys.justPressed.ENTER && alphabetText.targetY == 0) {
+		if ((FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) && alphabetText.targetY == 0) {
 			FlxG.openURL(url);
 		}
 	}
