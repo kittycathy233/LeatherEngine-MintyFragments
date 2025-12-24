@@ -252,7 +252,7 @@ class FreeplayState extends MusicBeatState {
 		
 		// 初始化音频信息显示
 		audioInfoText = new FlxText(0, 0, 0, "", 16);
-		audioInfoText.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, LEFT);
+		audioInfoText.setFormat(Paths.font("unifont-16.0.02.otf"), 16, FlxColor.WHITE, LEFT);
 		audioInfoText.visible = false;
 		audioInfoText.scrollFactor.set();
 		
@@ -921,8 +921,21 @@ class FreeplayState extends MusicBeatState {
 		
 		// 构建显示内容的各个部分
 		var lines:Array<String> = [];
-		lines.push("Song: " + curSong.name);
-		lines.push("Diff: " + curDiffString.toUpperCase());
+		addWrappedText(lines, "Song Name: " + curSong.name, 45); // 歌曲名允许稍长一些
+		addWrappedText(lines, "Difficulty: " + curDiffString.toUpperCase(), 45);
+		
+		// 添加元数据信息（作曲者、谱师、模组谱师）- 支持多行显示
+		if (curSong.metadata != null) {
+			if (curSong.metadata.composer != null && curSong.metadata.composer.trim() != "") {
+				addWrappedText(lines, "composer: " + curSong.metadata.composer);
+			}
+			if (curSong.metadata.charter != null && curSong.metadata.charter.trim() != "") {
+				addWrappedText(lines, "charter: " + curSong.metadata.charter);
+			}
+			if (curSong.metadata.modcharter != null && curSong.metadata.modcharter.trim() != "") {
+				addWrappedText(lines, "modcharter: " + curSong.metadata.modcharter);
+			}
+		}
 		
 		// 添加箭头数量信息
 		if (PlayState.SONG != null) {
@@ -1006,10 +1019,10 @@ class FreeplayState extends MusicBeatState {
 				}
 			}
 			
-			lines.push("Notes: " + playerNoteCount + " (BF) | " + opponentNoteCount + " (Dad)");
+			lines.push("Notes: " + playerNoteCount + " (Player) | " + opponentNoteCount + " (Opponent)");
 		}
 		
-		lines.push("Inst: " + instFileName);
+		addWrappedText(lines, "Inst File: " + instFileName, 50); // 文件名可以稍长一些
 		
 		// 添加人声音轨信息
 		var hasPlayerVoices:Bool = false;
@@ -1042,14 +1055,14 @@ class FreeplayState extends MusicBeatState {
 				}
 			}
 			
-			lines.push("Vocal(BF): " + playerFileName);
-			lines.push("Vocal(Dad): " + opponentFileName);
+			addWrappedText(lines, "Player Vocal: " + playerFileName, 50);
+			addWrappedText(lines, "Opponent Vocal: " + opponentFileName, 50);
 		} else if (hasPlayerVoices) {
 			// 只有 Player 人声
 			for (path in voicePaths) {
 				var fileName:String = path.split('/').pop();
 				if (fileName.indexOf("-player") != -1) {
-					lines.push("Vocal(BF): " + fileName);
+					addWrappedText(lines, "Vocal(BF): " + fileName, 50);
 					break;
 				}
 			}
@@ -1058,7 +1071,7 @@ class FreeplayState extends MusicBeatState {
 			for (path in voicePaths) {
 				var fileName:String = path.split('/').pop();
 				if (fileName.indexOf("-opponent") != -1) {
-					lines.push("Vocal(Dad): " + fileName);
+					addWrappedText(lines, "Vocal(Dad): " + fileName, 50);
 					break;
 				}
 			}
@@ -1066,7 +1079,7 @@ class FreeplayState extends MusicBeatState {
 			// 只有原始 Voices 人声
 			for (path in voicePaths) {
 				var fileName:String = path.split('/').pop();
-				lines.push("Vocal: " + fileName);
+				addWrappedText(lines, "Vocal File: " + fileName, 50);
 				break;
 			}
 		}
@@ -1225,5 +1238,65 @@ class FreeplayState extends MusicBeatState {
 			}
 		}
 		call("beatHitPost");
+	}
+	
+	/**
+	 * 添加文本到行数组，支持手动换行符(\n)和自动换行
+	 * @param lines 行数组
+	 * @param text 要添加的文本
+	 * @param maxLineLength 每行最大字符数，默认为40
+	 */
+	private function addWrappedText(lines:Array<String>, text:String, maxLineLength:Int = 40):Void {
+		// 首先按手动换行符分割 - 支持多种换行符格式
+		var manualLines:Array<String> = [];
+		
+		// 检查是否包含实际的换行符，如果没有则按转义字符分割
+		if (text.indexOf('\n') != -1) {
+			manualLines = text.split('\n');
+		} else if (text.indexOf('\\n') != -1) {
+			manualLines = text.split('\\n');
+		} else {
+			manualLines = [text];
+		}
+		
+		for (manualLine in manualLines) {
+			// 去除首尾空白字符，但保留内部空格
+			manualLine = manualLine.trim();
+			
+			// 如果是空行，跳过
+			if (manualLine == "") {
+				continue;
+			}
+			
+			// 如果单行长度在限制内，直接添加
+			if (manualLine.length <= maxLineLength) {
+				lines.push(manualLine);
+			} else {
+				// 处理过长的单行，按单词智能换行
+				var words:Array<String> = manualLine.split(" ");
+				var currentLine:String = "";
+				
+				for (word in words) {
+					// 如果当前行为空，直接添加词
+					if (currentLine == "") {
+						currentLine = word;
+					} else {
+						// 检查添加这个词后是否会超过最大长度
+						if ((currentLine + " " + word).length <= maxLineLength) {
+							currentLine += " " + word;
+						} else {
+							// 当前行已满，添加到行数组并开始新行
+							lines.push(currentLine);
+							currentLine = word;
+						}
+					}
+				}
+				
+				// 添加最后一行
+				if (currentLine != "") {
+					lines.push(currentLine);
+				}
+			}
+		}
 	}
 }
