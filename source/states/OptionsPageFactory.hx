@@ -61,7 +61,7 @@ class OptionsPageFactory {
 			new BoolOption("VSync", "vSync", "Toggle VSync."),
 			new BoolOption("Bigger Score Text", "biggerScoreInfo", "When toggled, the score text will have a larger font."),
 			new BoolOption("Bigger Info Text", "biggerInfoText", "When toggled, the time bar will have a larger font."),
-			new StringSaveOption("Time Bar Style", ["leather engine", "psych engine", "old kade engine"], "timeBarStyle", "Change the style of the time bar."),
+			new StringSaveOption("Time Bar Style", ["leather engine", "leather engine (legacy)", "psych engine", "old kade engine"], "timeBarStyle", "Change the style of the time bar."),
 			new PageOption("Screen Effects", "Screen Effects", "Toggle screen effect options, such as camera zooming and shaders."),
 			new GameStateOption("Change Hud Settings", ui.HUDAdjustment, "Change the position of hud objects, such as the ratings.")
 		]);

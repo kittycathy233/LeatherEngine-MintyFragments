@@ -1013,6 +1013,7 @@ class PlayState extends MusicBeatState {
 		healthBar = new FlxBar(healthBarBG.x + 4, healthBarBG.y + 4, RIGHT_TO_LEFT, Std.int(healthBarBG.width - 8), Std.int(healthBarBG.height - 8), this,
 			'healthShown', minHealth, maxHealth);
 		healthBar.scrollFactor.set();
+		healthBar.numDivisions= 5120;
 		healthBar.createFilledBar(dad.barColor, boyfriend.barColor);
 		healthBar.pixelPerfectPosition = true;
 		add(healthBar);
@@ -2501,7 +2502,6 @@ class PlayState extends MusicBeatState {
 					invalidateNote(note);
 				}
 			}
-			// 性能优化：音符循环结束
 
 			if (Options.getData("noteBGAlpha") != 0 && !switchedStates)
 				updateNoteBGPos();
@@ -2514,22 +2514,22 @@ class PlayState extends MusicBeatState {
 			&& startedCountdown
 			&& canPause
 			&& !switchedStates) {
-			persistentUpdate = false;
-			persistentDraw = true;
-			paused = true;
+		persistentUpdate = false;
+		persistentDraw = true;
+		paused = true;
 
-			#if LUA_ALLOWED
-			for (tween in LuaScript.lua_Tweens) {
-				FlxTweenUtil.pauseTween(tween);
-			}
-			#end
+		#if LUA_ALLOWED
+		for (tween in LuaScript.lua_Tweens) {
+			FlxTweenUtil.pauseTween(tween);
+		}
+		#end
 
-			call('onPause', []);
-			openSubState(new PauseSubState());
-			call('onPausePost', []);
-			#if DISCORD_ALLOWED
-			DiscordClient.changePresence(detailsPausedText, SONG.song + " (" + storyDifficultyStr + ")", iconRPC);
-			#end
+		call('onPause', []);
+		openSubState(new PauseSubState());
+		call('onPausePost', []);
+		#if DISCORD_ALLOWED
+		DiscordClient.changePresence(detailsPausedText, SONG.song + " (" + storyDifficultyStr + ")", iconRPC);
+		#end
 		}
 
 		if (!Options.getData("disableDebugMenus")) {
@@ -3789,7 +3789,7 @@ class PlayState extends MusicBeatState {
 			notes.sort(FlxSort.byY, (Options.getData("downscroll") ? FlxSort.ASCENDING : FlxSort.DESCENDING));
 
 		if (SONG.notes[Math.floor(curStep / Conductor.stepsPerSection)] != null) {
-			if (timeBarStyle == 'leather engine'
+			if ((timeBarStyle == 'leather engine' || timeBarStyle == 'leather engine (legacy)')
 				&& Math.floor(curStep / Conductor.stepsPerSection) != Math.floor((curStep - 1) / Conductor.stepsPerSection)
 				&& SONG.chartType != VSLICE) {
 				var target:FlxColor = SONG.notes[Math.floor(curStep / Conductor.stepsPerSection)].mustHitSection ? boyfriend.barColor : dad.barColor;
@@ -4152,6 +4152,8 @@ class PlayState extends MusicBeatState {
 
 		switch (timeBarStyle.toLowerCase()) {
 			default: // includes 'leather engine'
+				timeBar.text.text = SONG.song + " ~ " + storyDifficultyStr + ' (${FlxStringUtil.formatTime(seconds, false)})$suffix';
+			case "leather engine (legacy)":
 				timeBar.text.text = SONG.song + " ~ " + storyDifficultyStr + ' (${FlxStringUtil.formatTime(seconds, false)})$suffix';
 			case "psych engine":
 				timeBar.text.text = '${FlxStringUtil.formatTime(seconds, false)}$suffix';
