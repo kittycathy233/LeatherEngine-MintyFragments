@@ -47,6 +47,7 @@ import modding.scripts.*;
 import modding.scripts.languages.*;
 import substates.GameOverSubstate;
 import substates.PauseSubState;
+import substates.PauseSubState2;
 import toolbox.ChartingState;
 import ui.DialogueBox;
 import ui.HealthIcon;
@@ -2525,7 +2526,7 @@ class PlayState extends MusicBeatState {
 		#end
 
 		call('onPause', []);
-		openSubState(new PauseSubState());
+		openSubState(new PauseSubState2());
 		call('onPausePost', []);
 		#if DISCORD_ALLOWED
 		DiscordClient.changePresence(detailsPausedText, SONG.song + " (" + storyDifficultyStr + ")", iconRPC);
