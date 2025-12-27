@@ -43,6 +43,24 @@ class Options {
 
 		defaultOptions = Json.parse(Assets.getText(Paths.json("defaultOptions")));
 
+		// 获取屏幕刷新率并设置maxFPS为刷新率的2倍（仅在第一次运行时）
+		#if desktop
+		var refreshRate:Int = 120;
+		try {
+			refreshRate = Application.current.window.displayMode.refreshRate;
+		} catch (e:Dynamic) {
+		}
+		var targetFPS:Int = Math.round(refreshRate * 2);
+		targetFPS = Math.round(Math.max(60, Math.min(1000, targetFPS)));
+		
+		for (option in defaultOptions.options) {
+			if (option.option == "maxFPS") {
+				option.value = targetFPS;
+				break;
+			}
+		}
+		#end
+
 		for (option in defaultOptions.options) {
 			var saveKey = option.save ?? "main";
 			var dataKey = option.option;

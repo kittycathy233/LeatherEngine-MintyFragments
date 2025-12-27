@@ -90,7 +90,7 @@
 		},
 		{
 			"option": "infoDisplayFont",
-			"value": "_sans"
+			"value": "VCR OSD Mono"
 		},
 		{
 			"option": "ghostTapping",
