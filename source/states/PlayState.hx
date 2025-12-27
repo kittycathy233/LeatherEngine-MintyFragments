@@ -1652,7 +1652,8 @@ class PlayState extends MusicBeatState {
 
 				var sustainGroup:Array<Note> = [];
 
-				for (susNote in 0...Math.floor(swagNote.sustainLength / Std.int(Conductor.stepCrochet))) {
+				var sustainCount:Int = Math.ceil(swagNote.sustainLength / Std.int(Conductor.stepCrochet));
+				for (susNote in 0...sustainCount) {
 					oldNote = unspawnNotes[unspawnNotes.length - 1];
 
 					var sustainNote:Note = new Note(daStrumTime
@@ -1667,7 +1668,7 @@ class PlayState extends MusicBeatState {
 
 					sustainGroup.push(sustainNote);
 					sustainNote.sustains = sustainGroup;
-					sustainNote.correctionOffset = Options.getData("downscroll") ? 0 : swagNote.height / 2;
+					sustainNote.correctionOffset = swagNote.height / 2;
 				}
 
 				swagNote.sustains = sustainGroup;
