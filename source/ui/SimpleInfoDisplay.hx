@@ -13,6 +13,7 @@ import openfl.text.TextFormat;
 import external.memory.Memory;
 import macros.GithubCommitHash;
 import haxe.macro.Compiler;
+import Main;
 
 /**
  * Shows basic info about the game.
@@ -97,7 +98,7 @@ class SimpleInfoDisplay extends TextField {
 			text += textToAppend;
 		}
 		if (showVersion) {
-			text += 'LE $version\n';
+			text += 'LE v${Main.leatherVersion}\nMF ${version}\n';
 		}
 		if (showCommitHash) {
 			text += 'Commit ${GithubCommitHash.getGitCommitHash().substring(0, 7)}';

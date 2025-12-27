@@ -33,6 +33,7 @@ import hxwindowmode.WindowColorMode;
 import winapi.WindowsAPI;
 #end
 class Main extends Sprite {
+	public static var leatherVersion:String = "1.1.6";
 	public static var display:SimpleInfoDisplay;
 	public static var logsOverlay:Logs;
 

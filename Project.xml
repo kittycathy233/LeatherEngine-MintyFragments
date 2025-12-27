@@ -7,12 +7,12 @@
 	<!-- Change things about the exported file, such as executable name or version number. -->
 	<!-- You likely will want to change these if you're making a source mod. -->
 	<app
-		title="Leather Engine"
-		file="LeatherEngine"
-		packageName="com.leather128.funkin"
-		package="com.leather128.funkin"
-		version="1.1.7"
-		company="leather128"
+		title="Leather Engine: Minty Fragments"
+		file="LeatherMintyFragments"
+		packageName="com.kittycathy233.funkin"
+		package="com.kittycathy233.funkin"
+		version="1.0.0"
+		company="kittycathy233"
 	/>
 
 	<!-- LEATHER ENGINE CUSTOMIZATION -->

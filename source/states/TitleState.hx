@@ -160,7 +160,7 @@ class TitleState extends MusicBeatState {
 	public var danceLeft:Bool = false;
 	public var titleText:FlxSprite;
 
-	public static var version:String = "vnull";
+	public static var version:String = "v null";
 
 	public static inline function playTitleMusic() {
 		FlxG.sound.playMusic(MusicUtilities.getTitleMusic(), 0);
@@ -208,7 +208,8 @@ class TitleState extends MusicBeatState {
 			playTitleMusic();
 		}
 
-		version = '${Application.current.meta.get('name')} ${CoolUtil.getCurrentVersion()}';
+		//version = '${Application.current.meta.get('name')} ${CoolUtil.getCurrentVersion()}';
+		version = 'Leather Engine v${Main.leatherVersion} \nMinty Fragments ${CoolUtil.getCurrentVersion()}';
 
 		call("createTitleAssets");
 

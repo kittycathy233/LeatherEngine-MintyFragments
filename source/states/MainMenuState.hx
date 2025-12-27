@@ -116,13 +116,13 @@ class MainMenuState extends MusicBeatState {
 
 		FlxG.camera.follow(camFollow, null, 0.06);
 
-		var versionShit:FlxText = new FlxText(5, FlxG.height - 18, 0, TitleState.version, 16);
+		var versionShit:FlxText = new FlxText(5, FlxG.height - 34, 0, TitleState.version, 16);
 		versionShit.scrollFactor.set();
 		versionShit.setFormat(Paths.font('vcr.ttf'), 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE_FAST, FlxColor.BLACK);
 		add(versionShit);
 
 		#if MODDING_ALLOWED
-		var switchInfo:FlxText = new FlxText(5, versionShit.y - versionShit.height, 0, 'Hit TAB to switch mods.', 16);
+		var switchInfo:FlxText = new FlxText(5, versionShit.y - versionShit.height, 0, 'Hit [TAB] to switch mods.', 16);
 		switchInfo.scrollFactor.set();
 		switchInfo.setFormat(Paths.font('vcr.ttf'), 16, FlxColor.WHITE, LEFT, FlxTextBorderStyle.OUTLINE_FAST, FlxColor.BLACK);
 		add(switchInfo);

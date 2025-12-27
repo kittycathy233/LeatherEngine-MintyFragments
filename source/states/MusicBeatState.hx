@@ -154,7 +154,7 @@ class MusicBeatState extends #if MODCHARTING_TOOLS modcharting.ModchartMusicBeat
 	inline static function _refreshWindowName():Void {
 		var finalPrefix:String = windowNamePrefix;
 		if (!Options.getData("windowNameUsesMod")) {
-			finalPrefix = "Leather Engine";
+			finalPrefix = "Leather Engine: Minty Fragments";
 		}
 		var suffix:String = windowNameSuffix #if debug + ' (DEBUG)' #end;
 		#if sys
