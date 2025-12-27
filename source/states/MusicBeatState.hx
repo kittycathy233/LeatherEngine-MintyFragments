@@ -156,6 +156,38 @@ class MusicBeatState extends #if MODCHARTING_TOOLS modcharting.ModchartMusicBeat
 		if (!Options.getData("windowNameUsesMod")) {
 			finalPrefix = "Leather Engine";
 		}
-		FlxG.stage.window.title = finalPrefix + windowNameSuffix #if debug + ' (DEBUG)' #end;
+		var suffix:String = windowNameSuffix #if debug + ' (DEBUG)' #end;
+		#if sys
+		if (_isAdministrator()) {
+			suffix += ' (Administrator)';
+		}
+		#end
+		FlxG.stage.window.title = finalPrefix + suffix;
 	}
+
+	#if sys
+	/**
+	 * 检查当前程序是否以管理员权限运行
+	 */
+	@:noCompletion
+	private static function _isAdministrator():Bool {
+		try {
+			#if windows
+			var process = new sys.io.Process('net', ['session']);
+			var exitCode = process.exitCode();
+			process.close();
+			return exitCode == 0;
+			#elseif linux
+			var process = new sys.io.Process('id', ['-u']);
+			var uid = StringTools.trim(process.stdout.readAll().toString());
+			process.close();
+			return uid == "0";
+			#else
+			return false;
+			#end
+		} catch (e:Dynamic) {
+			return false;
+		}
+	}
+	#end
 }
