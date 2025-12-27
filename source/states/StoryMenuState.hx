@@ -50,6 +50,9 @@ class StoryMenuState extends MusicBeatState {
 	var yellowBG:FlxSprite;
 	var bgSprite:FlxSprite;
 
+	/* STATE */
+	var hasNoWeeks:Bool = false;
+
 	var weekGraphics:FlxTypedGroup<MenuItem>;
 	var menuCharacters:FlxTypedGroup<MenuCharacter>;
 
@@ -83,6 +86,16 @@ class StoryMenuState extends MusicBeatState {
 			persistentUpdate = false;
 		}
 		#end
+
+		if (hasNoWeeks) {
+			if (FlxG.keys.justPressed.ANY) {
+				FlxG.sound.play(Paths.sound('cancelMenu'));
+				FlxG.switchState(() -> new MainMenuState());
+				return;
+			}
+			super.update(elapsed);
+			return;
+		}
 
 		if (currentGroup != null) {
 			lerpScore = Math.floor(FlxMath.lerp(lerpScore, intendedScore, 0.5));
@@ -171,6 +184,19 @@ class StoryMenuState extends MusicBeatState {
 			text.size = 32;
 			text.screenCenter();
 			add(text);
+			
+			var hintText:FlxText = new FlxText();
+			hintText.text = "Press any key to return";
+			hintText.font = Paths.font("vcr.ttf");
+			hintText.alignment = CENTER;
+			hintText.borderStyle = OUTLINE_FAST;
+			hintText.size = 30;
+			hintText.screenCenter();
+			hintText.y += 60;
+			hintText.color = FlxColor.GRAY;
+			add(hintText);
+			
+			hasNoWeeks = true;
 			return;
 		}
 		bgSprite = new FlxSprite(0, 56);
