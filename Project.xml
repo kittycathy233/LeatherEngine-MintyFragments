@@ -152,6 +152,9 @@
 	<haxelib name="hxgamemode" if="linux" />
 
 	<haxelib name="hxWindowColorMode"/>
+	<haxelib name="extension-androidtools" />
+	<haxelib name="sl-windows-api"/>
+	<haxelib name="spine-haxe" />
 
 	<!-- Compiler Arguments -->
 	<define name="no-deprecation-warnings" />
@@ -194,6 +197,9 @@
 
 	<!-- Target-Specific Defines. -->
 	<define name="NO_PRECOMPILED_HEADERS" if="linux" />
+
+	<!--Disable the Flixel core sound tray-->
+	<!--haxedef name="FLX_NO_SOUND_TRAY" /-->
 
 	<!-- Window Icon Path -->
 	<icon path="art/icon.png" />

@@ -30,6 +30,7 @@ import hxgamemode.GamemodeClient;
 
 #if windows
 import hxwindowmode.WindowColorMode;
+import winapi.WindowsAPI;
 #end
 class Main extends Sprite {
 	public static var display:SimpleInfoDisplay;
@@ -58,6 +59,9 @@ class Main extends Sprite {
 		untyped __cpp__('', utilities.ALSoft);
 		super();
 
+		#if windows
+		WindowColorMode.setDarkMode();
+		#end
 		#if sys
 		Lib.current.loaderInfo.uncaughtErrorEvents.addEventListener(UncaughtErrorEvent.UNCAUGHT_ERROR, _onUncaughtError);
 		#end
@@ -104,10 +108,6 @@ class Main extends Sprite {
 				resetSpriteCache(FlxG.game);
 			}
 		});
-
-		#if windows
-		WindowColorMode.setDarkMode();
-		#end
 	}
 
 	public static inline function resetSpriteCache(sprite:Sprite):Void {
