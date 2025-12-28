@@ -88,6 +88,33 @@ class FlxSoundTray extends Sprite
 	 * Current progress width for smooth animation
 	 */
 	var _currentProgressWidth:Float = 0;
+	
+	/**
+	 * Current color for smooth transitions
+	 */
+	var _currentColor:FlxColor;
+	
+	/**
+	 * Target color for smooth transitions
+	 */
+	var _targetColor:FlxColor;
+	
+	/**
+	 * Track whether the tray was just muted to handle animations properly
+	 */
+	var _wasJustMuted:Bool = false;
+	
+	/**
+	 * Frame counter for update rate limiting
+	 */
+	var _frameCounter:Int = 0;
+	
+	/**
+	 * Update frequency - update visuals every N frames
+	 * Set to 2 means update every 2 frames (60 FPS -> 30 FPS updates)
+	 * Higher values = better performance but less smooth animation
+	 */
+	var _updateFrequency:Int = 3;
 
 
 
@@ -193,8 +220,13 @@ class FlxSoundTray extends Sprite
 		visible = false;
 		_currentAlpha = 0;
 		_targetAlpha = 0;
-		_currentProgressWidth = 0;
-		_targetProgressWidth = 0;
+		_currentProgressWidth = (_minWidth - 30) * FlxG.sound.volume;
+		_targetProgressWidth = _currentProgressWidth;
+		
+		// Initialize colors for smooth transitions
+		var initialVolume = FlxG.sound.volume;
+		_currentColor = getVolumeColor(initialVolume);
+		_targetColor = _currentColor;
 	}
 	
 	
@@ -204,6 +236,12 @@ class FlxSoundTray extends Sprite
 	 */
 	public function update(MS:Float):Void
 	{
+		// Increment frame counter
+		_frameCounter++;
+		
+		// Only update visuals every N frames to save performance
+		var shouldUpdateVisuals = (_frameCounter % _updateFrequency == 0);
+		
 		// Animate sound tray thing
 		if (_timer > 0)
 		{
@@ -215,9 +253,9 @@ class FlxSoundTray extends Sprite
 			_targetAlpha = 0.0;
 		}
 		
-		// Smooth alpha transition
+		// Smooth alpha transition - update every frame for smoothness
 		var alphaSpeed = 0.02;
-		if (Math.abs(_currentAlpha - _targetAlpha) > 0.01)
+		if (Math.abs(_currentAlpha - _targetAlpha) > 0.005)
 		{
 			_currentAlpha += (_targetAlpha - _currentAlpha) * alphaSpeed;
 			alpha = _currentAlpha;
@@ -233,12 +271,33 @@ class FlxSoundTray extends Sprite
 		if (Math.abs(_currentProgressWidth - _targetProgressWidth) > 0.5)
 		{
 			_currentProgressWidth += (_targetProgressWidth - _currentProgressWidth) * progressSpeed;
-			updateProgressBarVisual();
+			if (shouldUpdateVisuals)
+				updateProgressBarVisual();
 		}
 		else
 		{
 			_currentProgressWidth = _targetProgressWidth;
-			updateProgressBarVisual();
+			if (shouldUpdateVisuals)
+				updateProgressBarVisual();
+		}
+		
+		// Update target color based on current volume
+		var currentVolume = _currentProgressWidth / (_minWidth - 30);
+		_targetColor = getVolumeColor(currentVolume);
+		
+		// Smooth color transition - less frequent updates
+		var colorSpeed = 0.04;
+		if (!areColorsEqual(_currentColor, _targetColor))
+		{
+			_currentColor = interpolateColor(_currentColor, _targetColor, colorSpeed);
+			if (shouldUpdateVisuals)
+				updateProgressBarVisual();
+		}
+		else
+		{
+			_currentColor = _targetColor;
+			if (shouldUpdateVisuals)
+				updateProgressBarVisual();
 		}
 		
 		// Handle sliding animation
@@ -253,7 +312,7 @@ class FlxSoundTray extends Sprite
 			// Slide up (when hiding)
 			y -= (MS / 1000) * height * 0.2;
 
-			if (y <= -height)
+			if (y <= -height * 2)
 			{
 				visible = false;
 				active = false;
@@ -306,11 +365,8 @@ class FlxSoundTray extends Sprite
 		// Set target progress width for smooth animation
 		_targetProgressWidth = Math.round((_minWidth - 30) * volume);
 		
-		// Initialize current progress width to avoid animation from 0 on first show
-		if (_currentProgressWidth == 0)
-		{
-			_currentProgressWidth = _targetProgressWidth;
-		}
+		// Track mute state changes for proper animation handling
+		_wasJustMuted = (volume <= 0);
 		
 		// Update percentage display
 		var percentage = Math.round(volume * 100);
@@ -372,15 +428,8 @@ class FlxSoundTray extends Sprite
 	{
 		_progressFill.graphics.clear();
 		
-		// Calculate color based on current progress
-		var volume = _currentProgressWidth / (_minWidth - 30);
-		var barColor:FlxColor;
-		if (volume < 0.3)
-			barColor = FlxColor.RED;
-		else if (volume < 0.7)
-			barColor = FlxColor.YELLOW;
-		else
-			barColor = FlxColor.GREEN;
+		// Use the current interpolated color instead of calculating directly
+		var barColor = _currentColor;
 		
 		// Create gradient fill for silky smooth look
 		var fillMatrix = new Matrix();
@@ -417,6 +466,41 @@ class FlxSoundTray extends Sprite
 		);
 		_progressFill.graphics.drawRoundRect(15, 28, _currentProgressWidth, _progressBarHeight / 2, 6, 6);
 		_progressFill.graphics.endFill();
+	}
+	
+	/**
+	 * Gets the target color based on volume level
+	 */
+	function getVolumeColor(volume:Float):FlxColor
+	{
+		if (volume <= 0.25)
+			return FlxColor.fromString("#CD5C5C");
+		else if (volume <= 0.8)
+			return FlxColor.fromString("#CCCCFF");
+		else
+			return FlxColor.fromString("#87CEFA");
+	}
+	
+	/**
+	 * Checks if two colors are approximately equal
+	 */
+	function areColorsEqual(color1:FlxColor, color2:FlxColor):Bool
+	{
+		return Math.abs(color1.redFloat - color2.redFloat) < 0.01 &&
+			   Math.abs(color1.greenFloat - color2.greenFloat) < 0.01 &&
+			   Math.abs(color1.blueFloat - color2.blueFloat) < 0.01;
+	}
+	
+	/**
+	 * Interpolates between two colors with a given factor (0-1)
+	 */
+	function interpolateColor(fromColor:FlxColor, toColor:FlxColor, factor:Float):FlxColor
+	{
+		var red = fromColor.redFloat + (toColor.redFloat - fromColor.redFloat) * factor;
+		var green = fromColor.greenFloat + (toColor.greenFloat - fromColor.greenFloat) * factor;
+		var blue = fromColor.blueFloat + (toColor.blueFloat - fromColor.blueFloat) * factor;
+		
+		return FlxColor.fromRGBFloat(red, green, blue);
 	}
 }
 #end
