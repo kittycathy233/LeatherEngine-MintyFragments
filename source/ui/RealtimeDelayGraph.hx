@@ -71,8 +71,8 @@ class RealtimeDelayGraph extends FlxSpriteGroup {
 	public function new(x:Float, y:Float) {
 		super(x, y);
 		
-		// 设置整体不透明度为0.7
-		this.alpha = 0.7;
+		// 设置整体不透明度为0.6
+		this.alpha = 0.6;
 		
 		// 加载判定设置
 		updateJudgementTimings();

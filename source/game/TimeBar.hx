@@ -76,22 +76,11 @@ class TimeBar extends FlxSpriteGroup {
 			case 'leather engine (legacy)':
 				bg.loadGraphic(Paths.gpuBitmap(healthBarPath));
 				bg.y = Options.getData("downscroll") ? FlxG.height - (bg.height + 1) : 1;
-				@:bypassAccessor
-				{
-					// barColorLeft = FlxColor.CYAN;
-					barColorRight = FlxColor.CYAN;
-				}
-
 				if (Options.getData("biggerInfoText")) {
 					text.borderSize = 1.5;
 					text.size = 20;
 				}
-
-				if (Options.getData("downscroll"))
-					text.y = bg.y - bg.height - 1;
-				else
-					text.y = bg.y + bg.height + 1;
-
+				text.y = bg.y + (Options.getData("downscroll") ? -bg.height - 1 : bg.height + 1);
 			case 'psych engine':
 				bg.makeGraphic(400, 19, FlxColor.BLACK);
 				bg.y = Options.getData("downscroll") ? FlxG.height - 36 : 10;

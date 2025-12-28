@@ -1092,7 +1092,8 @@ class PlayState extends MusicBeatState {
 
 		// Add realtime delay graph if enabled
 		if (Options.getData("realtimeDelayGraph")) {
-			realtimeDelayGraph = new ui.RealtimeDelayGraph(FlxG.width / 2 - 150, FlxG.height - 40);
+			realtimeDelayGraph = new ui.RealtimeDelayGraph(FlxG.width / 2 - 150, 50);
+			if(Options.getData("downscroll")) realtimeDelayGraph.y = FlxG.height - 60;
 			realtimeDelayGraph.cameras = [camHUD];
 			add(realtimeDelayGraph);
 		}
@@ -1335,6 +1336,9 @@ class PlayState extends MusicBeatState {
 		#if MODCHARTING_TOOLS
 		NoteMovement.getDefaultStrumPos(this);
 		#end
+
+		if (Options.getData("timeBarStyle").toLowerCase() == "leather engine (legacy)") 
+			FlxTween.color(timeBar.bar, 0.1, timeBar.bar.color, FlxColor.CYAN);
 
 		startedCountdown = true;
 		Conductor.songPosition = 0;
