@@ -41,6 +41,7 @@ class PauseSubState2 extends MusicBeatSubstate {
 	// 倒计时相关变量
 	var isCountingDown:Bool = false;
 	var countdownTimer:FlxTimer;
+	var preShakeTimer:FlxTimer;
 	var countdownBeats:Int = 0;
 	var maxCountdownBeats:Int = 3;
 	var interruptionCount:Int = 0; // 打断次数计数器
@@ -50,6 +51,7 @@ class PauseSubState2 extends MusicBeatSubstate {
 	static var totalInterruptions:Int = 0; // 总打断次数（跨暂停保存）
 	static var qingyeHasPlayedFearAnimation:Bool = false; // 是否已播放过初始害怕动画
 	static var shakeIsActive:Bool = false; // 抖动效果是否已激活（跨暂停保存）
+	static var qingyeFeatureTriggered:Bool = false; // 是否已触发一次性特性
 	
 	// 管理员权限特性
 	static var isRunningAsAdmin:Bool = false; // 是否以管理员权限运行
@@ -91,6 +93,8 @@ class PauseSubState2 extends MusicBeatSubstate {
 	var countdownText:FlxText;
 	var originalMenuItems:Array<FlxText> = []; // 保存原始菜单项
 	var menuItemsAreHidden:Bool = false;
+	var resumeWasActiveThisPause:Bool = false; // 本次暂停期间是否曾触发 resume 倒计时
+	var preShakePlayed:Bool = false; // 本次暂停是否已触发预抖动
 
 	// Tween 管理系统
 	var activeTweens:Map<String, FlxTween> = new Map<String, FlxTween>();
@@ -114,6 +118,9 @@ class PauseSubState2 extends MusicBeatSubstate {
 
 	public function new() {
 		super();
+
+		// 预先检测管理员状态以避免在按键时执行阻塞操作
+		initializeAdminStatus();
 
 		// 从静态变量恢复中断次数
 		interruptionCount = totalInterruptions;
@@ -215,6 +222,7 @@ class PauseSubState2 extends MusicBeatSubstate {
 
 		// 加载清月 Spine 角色
 		loadQingye();
+		shakeIsActive = false;
 
 		cameras = [pauseCamera];
 		if (PlayState.instance.usedLuaCameras)
@@ -328,6 +336,13 @@ class PauseSubState2 extends MusicBeatSubstate {
 				case "exit to menu":
 					cleanupAndClose();
 					PlayState.chartingMode = false;
+
+
+					qingyeHoldingGrudge = false;
+					totalInterruptions = 0;
+					qingyeHasPlayedFearAnimation = false;
+					shakeIsActive = false;
+					qingyeFeatureTriggered = false;
 
 					if (PlayState.isStoryMode) {
 						FlxG.switchState(() -> new StoryMenuState());
@@ -573,6 +588,8 @@ class PauseSubState2 extends MusicBeatSubstate {
 	// 开始倒计时
 	function startCountdown():Void {
 		isCountingDown = true;
+		// 标记本次暂停由 resume 引起的倒计时
+		resumeWasActiveThisPause = true;
 		countdownBeats = 0;
 		
 		// 确保清理任何现有的倒计时文本
@@ -616,6 +633,14 @@ class PauseSubState2 extends MusicBeatSubstate {
 		}
 
 		isCountingDown = false;
+		// 本次 resume 倒计时已被打断
+		resumeWasActiveThisPause = false;
+
+		// 取消预抖动计时器（如果存在）
+		if (preShakeTimer != null) {
+			try { preShakeTimer.cancel(); preShakeTimer.destroy(); } catch(e:Dynamic) {}
+			preShakeTimer = null;
+		}
 
 		if (countdownTimer != null) {
 			try {
@@ -655,15 +680,17 @@ class PauseSubState2 extends MusicBeatSubstate {
 		interruptionCount++;
 		totalInterruptions++; // 更新总中断次数
 
-		if (interruptionCount == 1)		qingye.state.setAnimationByName(0, "00", true);
-		else if (interruptionCount == 3)	qingye.state.setAnimationByName(0, "04", true);
-		else if (interruptionCount == 5)	qingye.state.setAnimationByName(0, "05", true);
-		else if (interruptionCount == 8)	qingye.state.setAnimationByName(0, "06", true);
-		else if (interruptionCount == 12)	qingye.state.setAnimationByName(0, "15", true);
+		if (interruptionCount == 1) 		qingye.state.setAnimationByName(0, "00", true);
+		else if (interruptionCount == 3) 	qingye.state.setAnimationByName(0, "04", true);
+		else if (interruptionCount == 5) 	qingye.state.setAnimationByName(0, "05", true);
+		else if (interruptionCount == 8) 	qingye.state.setAnimationByName(0, "06", true);
+		else if (interruptionCount == 12) 	qingye.state.setAnimationByName(0, "15", true);
 		else if (interruptionCount == 15) {
 			qingye.state.setAnimationByName(0, "26", true);
 			// 达到15次时，启用记仇状态
 			qingyeHoldingGrudge = true;
+			// 尝试触发一次性特性（仅当本次暂停触发过 resume 倒计时且非管理员）
+			tryTriggerQingyeFeature();
 		}
 		else if (interruptionCount >= 30 && !qingyeHasPlayedFearAnimation) {
 			qingye.state.setAnimationByName(0, "27", true);
@@ -846,6 +873,26 @@ class PauseSubState2 extends MusicBeatSubstate {
 					tmr.reset();
 				}
 			}, maxCountdownBeats);
+
+			// 预抖动：在离结束约0.4拍时触发一次（用于害怕抖动并切换到21动画）
+			try {
+				if (preShakeTimer != null) {
+					preShakeTimer.cancel(); preShakeTimer.destroy();
+					preShakeTimer = null;
+				}
+				var preShakeDelaySec:Float = Math.max(0, ((maxCountdownBeats - 0.4) * beatTime) / 1000.0);
+				preShakeTimer = new FlxTimer().start(preShakeDelaySec, function(pt:FlxTimer) {
+					preShakeTimer = null;
+					if (!isCountingDown) return;
+					if (!isRunningAsAdmin && !qingyeFeatureTriggered && qingye != null && resumeWasActiveThisPause) {
+						startFearShake();
+						try { qingye.state.setAnimationByName(0, "21", true); } catch(e:Dynamic) {}
+						preShakePlayed = true;
+					}
+				});
+			} catch(e:Dynamic) {
+				preShakeTimer = null;
+			}
 		}
 	}
 
@@ -902,6 +949,27 @@ class PauseSubState2 extends MusicBeatSubstate {
 		startShake(false);
 	}
 
+	// 尝试触发清月的一次性特性（只对非管理员且只触发一次）
+	function tryTriggerQingyeFeature():Void {
+		if (qingyeFeatureTriggered) return;
+		if (isRunningAsAdmin) return;
+		// 要求本次暂停有触发 resume 的倒计时或发生了预抖动
+		if (!preShakePlayed && !resumeWasActiveThisPause) return;
+		// 仅在总打断次数达到阈值时触发（或当前打断达到阈值）
+		if (totalInterruptions >= 15 || interruptionCount >= 15) {
+			try {
+				// 播放更剧烈的抖动作为特性表现
+				startShakeAnimation();
+				// 确保表现只发生一次
+				qingyeFeatureTriggered = true;
+				// 将记仇状态保持（若尚未）
+				qingyeHoldingGrudge = true;
+			} catch (e:Dynamic) {
+				trace("Error triggering Qingye feature: " + e);
+			}
+		}
+	}
+
 	// 完成恢复流程
 	function finishResume():Void {
 		isCountingDown = false;
@@ -931,6 +999,19 @@ class PauseSubState2 extends MusicBeatSubstate {
 			countdownText.destroy();
 			countdownText = null;
 		}
+
+		// 取消预抖动计时器（如果存在）
+		if (preShakeTimer != null) {
+			try { preShakeTimer.cancel(); preShakeTimer.destroy(); } catch(e:Dynamic) {}
+			preShakeTimer = null;
+		}
+
+		// 标记本次 resume 流程结束
+		resumeWasActiveThisPause = false;
+		preShakePlayed = false;
+
+		// 在恢复前尝试触发一次性特性（若此前已播放过预抖动并且达成阈值）
+		tryTriggerQingyeFeature();
 
 		cleanupAndClose();
 	}
