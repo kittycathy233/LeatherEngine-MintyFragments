@@ -59,6 +59,7 @@ class TitleState extends MusicBeatState {
 	public var swagShader:ColorSwapHSV;
 
 	public static var instance:TitleState = null;
+	public static var devNoticeShown:Bool = false;
 
 	override public function create():Void {
 		call('create');
@@ -117,8 +118,15 @@ class TitleState extends MusicBeatState {
 			}
 			#end
 
-			if (Options.getData("flashingLights") == null)
+			if (Options.getData("flashingLights") == null) {
 				FlxG.switchState(() -> new FlashingLightsMenu());
+				return;
+			}
+			else if (!devNoticeShown) {
+				devNoticeShown = true;
+				FlxG.switchState(() -> new DevNoticeState());
+				return;
+			}
 
 			curWacky = FlxG.random.getObject(getIntroTextShit());
 
