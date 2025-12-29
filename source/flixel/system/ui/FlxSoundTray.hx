@@ -13,10 +13,14 @@ import openfl.text.TextFormat;
 import openfl.text.TextFormatAlign;
 import openfl.display.GradientType;
 import openfl.geom.Matrix;
+import openfl.geom.ColorTransform;
 #if flash
 import openfl.text.AntiAliasType;
 import openfl.text.GridFitType;
 #end
+
+@:bitmap("assets/images/volicon.png")
+class VolumeIcon extends BitmapData {}
 
 /**
  * The flixel sound tray, the little volume meter that pops down sometimes.
@@ -39,6 +43,16 @@ class FlxSoundTray extends Sprite
 	 * The percentage display label
 	 */
 	var _percentLabel:TextField;
+	
+	/**
+	 * The volume icon (speaker)
+	 */
+	var _volumeIcon:Bitmap;
+	
+	/**
+	 * The muted volume icon (speaker with mute symbol)
+	 */
+	var _mutedIcon:Bitmap;
 	
 	var _bg:Sprite;
 	
@@ -149,6 +163,20 @@ class FlxSoundTray extends Sprite
 		_bg.graphics.drawRoundRect(0, 0, _minWidth, 45, 12, 12);
 		_bg.graphics.endFill();
 		addChild(_bg);
+		
+		// Create volume icon (speaker)
+		try {
+			var iconBitmapData = new VolumeIcon(0, 0);
+			_volumeIcon = new Bitmap(iconBitmapData);
+			_volumeIcon.x = 10;
+			_volumeIcon.y = 12;
+			_volumeIcon.width = 20;
+			_volumeIcon.height = 20;
+			addChild(_volumeIcon);
+		} catch (e:Dynamic) {
+			// Fallback if icon loading fails
+			trace("Failed to load volume icon: " + e);
+		}
 
 		// Create volume label
 		_label = new TextField();
@@ -169,7 +197,7 @@ class FlxSoundTray extends Sprite
 		_label.defaultTextFormat = dtf;
 		addChild(_label);
 		_label.text = "VOLUME";
-		_label.x = 17;
+		_label.x = 40; // Adjusted to make room for the icon
 		_label.y = 5;
 
 		// Create percentage label
@@ -196,7 +224,7 @@ class FlxSoundTray extends Sprite
 		// Create progress bar background with gradient
 		_progressBg = new Sprite();
 		var bgMatrix = new Matrix();
-		bgMatrix.createGradientBox(_minWidth - 30, _progressBarHeight, Math.PI / 2, 0, 0);
+		bgMatrix.createGradientBox(_minWidth - 35, _progressBarHeight, Math.PI / 2, 0, 0);
 		_progressBg.graphics.beginGradientFill(
 			GradientType.LINEAR,
 			[0x606060, 0x303030],
@@ -204,12 +232,12 @@ class FlxSoundTray extends Sprite
 			[0, 255],
 			bgMatrix
 		);
-		_progressBg.graphics.drawRoundRect(15, 28, _minWidth - 30, _progressBarHeight, 6, 6);
+		_progressBg.graphics.drawRoundRect(35, 28, _minWidth - 50, _progressBarHeight, 6, 6);
 		_progressBg.graphics.endFill();
 		
 		// Add inner shadow for depth
 		_progressBg.graphics.lineStyle(1, 0x202020, 0.5);
-		_progressBg.graphics.drawRoundRect(15, 28, _minWidth - 30, _progressBarHeight, 6, 6);
+		_progressBg.graphics.drawRoundRect(35, 28, _minWidth - 50, _progressBarHeight, 6, 6);
 		addChild(_progressBg);
 
 		// Create progress bar fill
@@ -220,7 +248,7 @@ class FlxSoundTray extends Sprite
 		visible = false;
 		_currentAlpha = 0;
 		_targetAlpha = 0;
-		_currentProgressWidth = (_minWidth - 30) * FlxG.sound.volume;
+		_currentProgressWidth = (_minWidth - 50) * FlxG.sound.volume;
 		_targetProgressWidth = _currentProgressWidth;
 		
 		// Initialize colors for smooth transitions
@@ -282,7 +310,7 @@ class FlxSoundTray extends Sprite
 		}
 		
 		// Update target color based on current volume
-		var currentVolume = _currentProgressWidth / (_minWidth - 30);
+		var currentVolume = _currentProgressWidth / (_minWidth - 50);
 		_targetColor = getVolumeColor(currentVolume);
 		
 		// Smooth color transition - less frequent updates
@@ -363,10 +391,13 @@ class FlxSoundTray extends Sprite
 		}
 		
 		// Set target progress width for smooth animation
-		_targetProgressWidth = Math.round((_minWidth - 30) * volume);
+		_targetProgressWidth = Math.round((_minWidth - 50) * volume);
 		
 		// Track mute state changes for proper animation handling
 		_wasJustMuted = (volume <= 0);
+		
+		// Update volume icon visibility based on mute state
+		updateVolumeIcon(volume);
 		
 		// Update percentage display
 		var percentage = Math.round(volume * 100);
@@ -451,7 +482,7 @@ class FlxSoundTray extends Sprite
 		);
 		
 		// Draw rounded progress bar
-		_progressFill.graphics.drawRoundRect(15, 28, _currentProgressWidth, _progressBarHeight, 6, 6);
+		_progressFill.graphics.drawRoundRect(35, 28, _currentProgressWidth, _progressBarHeight, 6, 6);
 		_progressFill.graphics.endFill();
 		
 		// Add subtle top highlight for silky appearance
@@ -464,7 +495,7 @@ class FlxSoundTray extends Sprite
 			[0, 255],
 			highlightMatrix
 		);
-		_progressFill.graphics.drawRoundRect(15, 28, _currentProgressWidth, _progressBarHeight / 2, 6, 6);
+		_progressFill.graphics.drawRoundRect(35, 28, _currentProgressWidth, _progressBarHeight / 2, 6, 6);
 		_progressFill.graphics.endFill();
 	}
 	
@@ -475,10 +506,20 @@ class FlxSoundTray extends Sprite
 	{
 		if (volume <= 0.25)
 			return FlxColor.fromString("#CD5C5C");
-		else if (volume <= 0.8)
+		else if (volume <= 0.7)
 			return FlxColor.fromString("#CCCCFF");
-		else
+		else if (volume < 0.9)
 			return FlxColor.fromString("#87CEFA");
+		else if (volume < 1.0)
+		{
+			// 从浅蓝色到金色的平滑过渡 (0.9-1.0)
+			var lightBlueColor = FlxColor.fromString("#87CEFA");
+			var goldColor = FlxColor.fromString("#FFD700");
+			var transition = (volume - 0.9) / 0.1; // 0.9-1.0 的映射
+			return interpolateColor(lightBlueColor, goldColor, transition);
+		}
+		else
+			return FlxColor.fromString("#FFD700"); // 纯金色 (Gold) for maximum volume
 	}
 	
 	/**
@@ -501,6 +542,40 @@ class FlxSoundTray extends Sprite
 		var blue = fromColor.blueFloat + (toColor.blueFloat - fromColor.blueFloat) * factor;
 		
 		return FlxColor.fromRGBFloat(red, green, blue);
+	}
+	
+	/**
+	 * Updates the volume icon based on current volume level
+	 */
+	function updateVolumeIcon(volume:Float):Void
+	{
+		if (_volumeIcon != null)
+		{
+			if (volume <= 0)
+			{
+				// Muted: make icon semi-transparent and slightly reddish
+				_volumeIcon.alpha = 0.5;
+				_volumeIcon.transform.colorTransform = new openfl.geom.ColorTransform(
+					1.2, 0.8, 0.8, 1.0, 20, 0, 0, 0
+				);
+			}
+			else if (volume <= 0.25)
+			{
+				// Low volume: slight transparency
+				_volumeIcon.alpha = 0.7;
+				_volumeIcon.transform.colorTransform = new openfl.geom.ColorTransform(
+					1.0, 1.0, 1.0, 1.0, 0, 0, 0, 0
+				);
+			}
+			else
+			{
+				// Normal volume: fully opaque
+				_volumeIcon.alpha = 1.0;
+				_volumeIcon.transform.colorTransform = new openfl.geom.ColorTransform(
+					1.0, 1.0, 1.0, 1.0, 0, 0, 0, 0
+				);
+			}
+		}
 	}
 }
 #end

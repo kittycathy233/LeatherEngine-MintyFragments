@@ -21,7 +21,9 @@ class PolymodHandler {
                     case WARNING:
                         trace(error.message, PrintType.WARNING);
                     default:
+                        #if debug
                         trace(error.message);
+                        #end
                 }
 			},
             frameworkParams: {
