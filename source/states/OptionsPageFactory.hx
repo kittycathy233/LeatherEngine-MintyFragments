@@ -84,7 +84,7 @@ class OptionsPageFactory {
 			new StringSaveOption("Play As", ["bf", "opponent"], "playAs", "Change which side of the chart you play."),
 			new BoolOption("Disable Debug Menus", "disableDebugMenus", "Disable debug menus, such as the chart editor."),
 			new BoolOption("Invisible Notes", "invisibleNotes", "Makes notes invisible.\n(why would you want this?)"),
-			new BoolOption("Auto Pause", "autoPause", "Will the game automatically pause when losing focus."),
+			new BoolOption("Auto Pause", "autoPause", "When enabled: game pauses when losing focus.\nWhen disabled: volume reduces to 25% when losing focus."),
 			#if (target.threaded)
 			new BoolOption("Load Asynchronously", "loadAsynchronously", "Loads some elements of the game will be loaded\nasyncrnously to speed up load times."),
 			#end
@@ -168,8 +168,8 @@ class OptionsPageFactory {
 				"When not toggled, the game will load non-animated\nversions of stage sprites (when possible)"),
 			new BoolOption("Preload Stage Events", "preloadChangeBGs",
 				"When toggled, the game will preload stage change events,\nincreasing memory usage,\nbut will prevent lag spikes on stage change."),
-			new BoolOption("Persistent Cached Data", "memoryLeaks",
-				"When toggled, the game will never clear stored memory,\nspeeding up load times.\n(WARNING: Can lead to VERY high memory usage)"),
+			new BoolOption("Persistent Cached Data", "persistentCachedData",
+				"When toggled, the game will never clear stored memory,\nspeeding up load times.\n(WARNING: Can lead to VERY high memory usage)\n\nRecommended: Enable only if you have 16GB+ RAM\nand experience long load times."),
 			new BoolOption("VRAM Sprites", "vramSprites",
 				"When toggled, the game will try and store\nsprites in your GPU, saving on RAM.\nTurn this off if you have a bad GPU."),
 			#if MODCHARTING_TOOLS

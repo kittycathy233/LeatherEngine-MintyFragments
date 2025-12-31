@@ -9,6 +9,7 @@ import utilities.PlayerSettings;
 import game.Conductor.BPMChangeEvent;
 import utilities.Controls;
 import utilities.Options;
+import utilities.BackgroundVolumeManager;
 import flixel.FlxG;
 
 /**
@@ -34,6 +35,10 @@ class MusicBeatState extends #if MODCHARTING_TOOLS modcharting.ModchartMusicBeat
 
 	override public function create() {
 		super.create();
+
+		// 恢复后台音量管理器状态（在游戏重启后正确恢复音量）
+		BackgroundVolumeManager.restoreState();
+
 		#if HSCRIPT_ALLOWED
 		var statePath:String = Type.getClassName(Type.getClass(this)).replace(".", "/");
 		if (sys.FileSystem.exists('mods/${Options.getData("curMod")}/classes/${statePath}.hx')) {
@@ -58,6 +63,9 @@ class MusicBeatState extends #if MODCHARTING_TOOLS modcharting.ModchartMusicBeat
 			stepHit();
 
 		super.update(elapsed);
+
+		// 更新后台音量管理器（定期检测窗口焦点状态）
+		BackgroundVolumeManager.update();
 
 		/*if (!Options.getData("antialiasing")) {
 			forEachAlive(function(basic:FlxBasic) {

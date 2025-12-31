@@ -122,13 +122,19 @@ class FlxSoundTray extends Sprite
 	 * Frame counter for update rate limiting
 	 */
 	var _frameCounter:Int = 0;
-	
+
 	/**
 	 * Update frequency - update visuals every N frames
 	 * Set to 2 means update every 2 frames (60 FPS -> 30 FPS updates)
 	 * Higher values = better performance but less smooth animation
 	 */
 	var _updateFrequency:Int = 3;
+
+	/**
+	 * Whether to use grayscale color for the progress bar
+	 * Used for background volume display
+	 */
+	var _useGrayscaleColor:Bool = false;
 
 
 
@@ -309,21 +315,30 @@ class FlxSoundTray extends Sprite
 				updateProgressBarVisual();
 		}
 		
-		// Update target color based on current volume
+		// Update target color based on current volume (only if not in grayscale mode)
 		var currentVolume = _currentProgressWidth / (_minWidth - 50);
-		_targetColor = getVolumeColor(currentVolume);
-		
-		// Smooth color transition - less frequent updates
-		var colorSpeed = 0.04;
-		if (!areColorsEqual(_currentColor, _targetColor))
+		if (!_useGrayscaleColor)
 		{
-			_currentColor = interpolateColor(_currentColor, _targetColor, colorSpeed);
-			if (shouldUpdateVisuals)
-				updateProgressBarVisual();
+			_targetColor = getVolumeColor(currentVolume);
+
+			// Smooth color transition - less frequent updates
+			var colorSpeed = 0.04;
+			if (!areColorsEqual(_currentColor, _targetColor))
+			{
+				_currentColor = interpolateColor(_currentColor, _targetColor, colorSpeed);
+				if (shouldUpdateVisuals)
+					updateProgressBarVisual();
+			}
+			else
+			{
+				_currentColor = _targetColor;
+				if (shouldUpdateVisuals)
+					updateProgressBarVisual();
+			}
 		}
 		else
 		{
-			_currentColor = _targetColor;
+			// In grayscale mode, just update the visual
 			if (shouldUpdateVisuals)
 				updateProgressBarVisual();
 		}
@@ -364,8 +379,9 @@ class FlxSoundTray extends Sprite
 	 * @param   sound     The sound to play, if any
 	 * @param   duration  How long the tray will show
 	 * @param   label     The test label to display
+	 * @param   useGrayscale  Whether to use grayscale for progress bar (for background volume)
 	 */
-	public function showAnim(volume:Float, ?sound:FlxSoundAsset, duration = 1.0, label = "VOLUME")
+	public function showAnim(volume:Float, ?sound:FlxSoundAsset, duration = 1.0, label = "VOLUME", useGrayscale = false)
 	{
 		// Check if volume is at maximum (>= 1.0)
 		var isMaxVolume = volume >= 1.0;
@@ -392,10 +408,13 @@ class FlxSoundTray extends Sprite
 		
 		// Set target progress width for smooth animation
 		_targetProgressWidth = Math.round((_minWidth - 50) * volume);
-		
+
+		// Set grayscale mode for background volume display
+		_useGrayscaleColor = useGrayscale;
+
 		// Track mute state changes for proper animation handling
 		_wasJustMuted = (volume <= 0);
-		
+
 		// Update volume icon visibility based on mute state
 		updateVolumeIcon(volume);
 		
@@ -458,21 +477,31 @@ class FlxSoundTray extends Sprite
 	function updateProgressBarVisual():Void
 	{
 		_progressFill.graphics.clear();
-		
-		// Use the current interpolated color instead of calculating directly
-		var barColor = _currentColor;
-		
+
+		// Use grayscale color if enabled (for background volume display)
+		var barColor:FlxColor;
+		if (_useGrayscaleColor)
+		{
+			// Use gray color for background volume
+			barColor = FlxColor.fromString("#808080"); // Medium gray
+		}
+		else
+		{
+			// Use the current interpolated color for normal volume
+			barColor = _currentColor;
+		}
+
 		// Create gradient fill for silky smooth look
 		var fillMatrix = new Matrix();
 		fillMatrix.createGradientBox(_currentProgressWidth, _progressBarHeight, Math.PI / 2, 0, 0);
-		
+
 		// Add subtle gradient from lighter to darker color
 		var lightColor = FlxColor.fromRGBFloat(
 			Math.min(1.0, barColor.redFloat + 0.2),
 			Math.min(1.0, barColor.greenFloat + 0.2),
 			Math.min(1.0, barColor.blueFloat + 0.2)
 		);
-		
+
 		_progressFill.graphics.beginGradientFill(
 			GradientType.LINEAR,
 			[lightColor, barColor],
@@ -480,11 +509,11 @@ class FlxSoundTray extends Sprite
 			[0, 255],
 			fillMatrix
 		);
-		
+
 		// Draw rounded progress bar
 		_progressFill.graphics.drawRoundRect(35, 28, _currentProgressWidth, _progressBarHeight, 6, 6);
 		_progressFill.graphics.endFill();
-		
+
 		// Add subtle top highlight for silky appearance
 		var highlightMatrix = new Matrix();
 		highlightMatrix.createGradientBox(_currentProgressWidth, _progressBarHeight / 2, Math.PI / 2, 0, 0);

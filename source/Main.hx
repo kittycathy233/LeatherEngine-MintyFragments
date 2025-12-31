@@ -22,6 +22,7 @@ import states.DevNoticeState;
 import states.TitleState;
 import ui.SimpleInfoDisplay;
 import ui.logs.Logs;
+import utilities.BackgroundVolumeManager;
 import sys.FileSystem;
 import sys.io.File;
 import sys.io.Process;
@@ -95,6 +96,9 @@ class Main extends Sprite {
 
 		display = new SimpleInfoDisplay(8, 3, 0xFFFFFF, "_sans");
 		addChild(display);
+
+		// 初始化后台音量管理器
+		BackgroundVolumeManager.init();
 
 		// shader coords fix
 		// stolen from psych engine lol
