@@ -238,6 +238,10 @@
 			"value": false
 		},
 		{
+			"option": "persistentCachedData",
+			"value": false
+		},
+		{
 			"option": "vramSprites",
 			"value": true
 		},

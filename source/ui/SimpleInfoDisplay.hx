@@ -32,6 +32,10 @@ class SimpleInfoDisplay extends TextField {
 	public var showTracedLines:Bool = false;
 	public var showCommitHash:Bool = false;
 
+	private var lastMemoryWarningTime:Float = 0;
+	private static inline var MEMORY_WARNING_INTERVAL:Float = 30000; // 30秒
+	private static inline var HIGH_MEMORY_THRESHOLD:Float = 2147483648; // 2GB
+
 	private var canLie:Bool = true;
 
 	public function new(x:Float = 10.0, y:Float = 10.0, color:Int = 0x000000, ?font:String) {
@@ -81,7 +85,22 @@ class SimpleInfoDisplay extends TextField {
 			text += '${framerate}fps\n';
 		}
 		if (showMemory) {
-			text += '${FlxStringUtil.formatBytes(Memory.getCurrentUsage())} / ${FlxStringUtil.formatBytes(Memory.getPeakUsage())}\n';
+			var currentUsage = Memory.getCurrentUsage();
+			var peakUsage = Memory.getPeakUsage();
+			text += '${FlxStringUtil.formatBytes(currentUsage)} / ${FlxStringUtil.formatBytes(peakUsage)}\n';
+
+			// 检查内存使用情况并显示警告
+			// 支持新旧两种变量名以保持向后兼容性
+			var keepCache:Bool = Options.getData("persistentCachedData") ?? Options.getData("memoryLeaks");
+			if (keepCache) {
+				if (currentUsage > HIGH_MEMORY_THRESHOLD) {
+					var currentTime = System.getTimer();
+					if (currentTime - lastMemoryWarningTime >= MEMORY_WARNING_INTERVAL) {
+						trace('⚠️ HIGH MEMORY USAGE: ${FlxStringUtil.formatBytes(currentUsage)}\nConsider disabling "Persistent Cached Data" if experiencing performance issues.');
+						lastMemoryWarningTime = currentTime;
+					}
+				}
+			}
 		}
 		if (showTracedLines && Options.getData("developer")) {
 			var textToAppend:String = '';

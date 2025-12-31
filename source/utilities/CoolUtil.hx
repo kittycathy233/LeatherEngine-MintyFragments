@@ -3,6 +3,7 @@ package utilities;
 import shaders.ColorSwap;
 import flixel.math.FlxMath;
 import flixel.tweens.FlxEase;
+import flixel.util.FlxStringUtil;
 import sys.FileSystem;
 import game.SongLoader.FNFCMetadata;
 import game.FreeplaySong;
@@ -309,16 +310,23 @@ class CoolUtil {
 		@see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
 	**/
 	public static var ansi_colors:Map<String, String> = [
-		'black' => '\033[40m',
-		'red' => '\033[41m',
-		'green' => '\033[42m',
-		'yellow' => '\033[43m',
-		'blue' => '\033[44m',
-		'magenta' => '\033[45m',
-		'cyan' => '\033[46m',
-		'grey' => '\033[47m',
-		'white' => '\033[101m',
-		'default' => '\033[0m' // grey apparently
+		'reset' => '\033[0m',
+		'black' => '\033[30m',
+		'red' => '\033[31m',
+		'green' => '\033[32m',
+		'yellow' => '\033[33m',
+		'blue' => '\033[34m',
+		'magenta' => '\033[35m',
+		'cyan' => '\033[36m',
+		'white' => '\033[37m',
+		'bright_black' => '\033[90m',
+		'bright_red' => '\033[91m',
+		'bright_green' => '\033[92m',
+		'bright_yellow' => '\033[93m',
+		'bright_blue' => '\033[94m',
+		'bright_magenta' => '\033[95m',
+		'bright_cyan' => '\033[96m',
+		'bright_white' => '\033[97m',
 	];
 
 	/**
@@ -349,7 +357,11 @@ class CoolUtil {
 		@author Leather128
 	**/
 	public static function print(message:String, ?type:PrintType = LOG, ?infos:PosInfos):Void {
-		untyped __cpp__("std::cout << {0}", '${formatOutput('${messageFromPrintType(type)} $message', infos)}\n');
+		// 先输出到终端，使用 std::flush 确保立即输出（无需等待主线程）
+		final consoleOutput:String = formatConsoleOutput(message, type, infos);
+		untyped __cpp__("std::cout << {0} << std::flush", consoleOutput + '\n');
+
+		// 游戏内日志必须在主线程更新（UI 操作）
 		final formattedMessage:String = formatOutput(message, infos);
 		EntryPoint.runInMainThread(() -> {
 			switch (type) {
@@ -365,6 +377,84 @@ class CoolUtil {
 		});
 	}
 
+	/**
+		Formats output for console with ANSI colors and proper structure.
+
+		@param message The message to format.
+		@param type The print type (LOG, DEBUG, WARNING, ERROR).
+		@param pos_infos Position info for source location.
+		@return Formatted console string.
+	**/
+	public static function formatConsoleOutput(message:String, type:PrintType, ?infos:PosInfos):String {
+		final location:String = (infos != null && infos.fileName != null && infos.fileName.length > 0)
+			? '${haxe.io.Path.normalize(infos.fileName)}:${infos.lineNumber}'
+			: 'unknown';
+		final cleanMessage:String = cleanAnsiEscapeCodes(message);
+
+		// 获取短路径（仅显示文件名）
+		final shortLocation:String = extractFileName(location);
+
+		// 使用 ANSI 颜色代码美化输出
+		final typeColor:String = getTypeColor(type);
+		final locationColor:String = ansi_colors.get('bright_cyan') ?? ansi_colors.get('cyan');
+		final messageColor:String = getMessageColor(type);
+		final resetColor:String = ansi_colors.get('reset') ?? '';
+
+		final typeLabel:String = switch(type) {
+			case DEBUG: 'DEBUG';
+			case WARNING: 'WARN ';
+			case ERROR: 'ERROR';
+			case LOG: 'LOG  ';
+		}
+
+		// 格式: [LOG] source/utilities/CoolUtil.hx:517: Garbage collection: 7.34MB freed
+		return '${typeColor}[${typeLabel}]${resetColor} ${locationColor}${location}${resetColor}: ${messageColor}${cleanMessage}${resetColor}';
+	}
+
+	/**
+		提取文件名从完整路径
+	**/
+	private static function extractFileName(fullPath:String):String {
+		// 如果路径太长，只显示最后几个目录 + 文件名
+		final parts:Array<String> = fullPath.replace('\\', '/').split('/');
+		if (parts.length <= 2) {
+			return fullPath;
+		}
+		// 保留最后两个层级，例如: source/utilities/File.hx
+		return parts.slice(-2).join('/');
+	}
+
+	/**
+		获取日志类型的颜色
+	**/
+	private static function getTypeColor(type:PrintType):String {
+		return switch(type) {
+			case DEBUG: ansi_colors.get('bright_green') ?? ansi_colors.get('green');
+			case WARNING: ansi_colors.get('bright_yellow') ?? ansi_colors.get('yellow');
+			case ERROR: ansi_colors.get('bright_red') ?? ansi_colors.get('red');
+			case LOG: ansi_colors.get('bright_cyan') ?? ansi_colors.get('cyan');
+		}
+	}
+
+	/**
+		获取消息内容的颜色
+	**/
+	private static function getMessageColor(type:PrintType):String {
+		return switch(type) {
+			case DEBUG: ansi_colors.get('bright_white') ?? ansi_colors.get('white');
+			case WARNING: ansi_colors.get('bright_yellow') ?? ansi_colors.get('yellow');
+			case ERROR: ansi_colors.get('bright_red') ?? ansi_colors.get('red');
+			case LOG: ansi_colors.get('white') ?? ansi_colors.get('white');
+		}
+	}
+
+	/**
+		清理消息中的 ANSI 转义码（防止双重转义）
+	**/
+	private static function cleanAnsiEscapeCodes(message:String):String {
+		return ~/[\x1b\x9b]\[[0-9;]*[a-zA-Z]/g.replace(message, '');
+	}
+
 	public static function formatOutput(v:Dynamic, infos:PosInfos):String {
 		var str = Std.string(v);
 		if (infos == null)
@@ -376,6 +466,25 @@ class CoolUtil {
 		return pstr + ": " + str;
 	}
 
+	/**
+	 * Format the path to be more readable (shorten if needed)
+	 */
+	public static function formatPath(path:String):String {
+		if (path == null || path.length <= 0)
+			return "unknown";
+
+		// Normalize path separators
+		var normalized = path.replace('\\', '/');
+
+		// Extract just the filename if the path is too long
+		var parts = normalized.split('/');
+		if (parts.length > 3) {
+			return '.../${parts.slice(-2).join("/")}';
+		}
+		return normalized;
+	}
+
+	// messageFromPrintType 已被 formatConsoleOutput 取代，保留用于向后兼容
 	public static function messageFromPrintType(?type:PrintType = LOG):String {
 		var messagePrefix:String;
 		switch (type) {
@@ -388,7 +497,7 @@ class CoolUtil {
 			default:
 				messagePrefix = '${ansi_colors["cyan"]} LOG';
 		}
-		return '$messagePrefix ${ansi_colors["default"]}';
+		return '$messagePrefix ${ansi_colors["default"] ?? ansi_colors["reset"]}';
 	}
 
 	/**
@@ -435,63 +544,87 @@ class CoolUtil {
 
 	/**
 	 * Clears all assets and other objects from the game's memory.
+	 * Will skip clearing if "persistentCachedData" option is enabled.
+	 * Garbage collection will ALWAYS run regardless of settings.
 	 */
 	public static function clearMemory():Void {
-		if (Options.getData('memoryLeaks')) {
-			return;
-		}
-		// Remove cached assets (prevents memory leaks that i can prevent)
-		lime.utils.Assets.cache.clear();
-		openfl.utils.Assets.cache.clear();
-		#if MODDING_ALLOWED
-		polymod.Polymod.clearCache();
+		// 支持新旧两种变量名以保持向后兼容性
+		var keepCache:Bool = Options.getData('persistentCachedData') ?? Options.getData('memoryLeaks');
+		
+		var beforeMem:Float = 0;
+		var clearedAssets:Bool = !keepCache;
+
+		#if cpp
+		beforeMem = external.memory.Memory.getCurrentUsage();
 		#end
 
-		// Remove lingering sounds from the sound list
-		FlxG.sound.list.forEachAlive(function(sound:flixel.sound.FlxSound):Void {
-			FlxG.sound.list.remove(sound, true);
-			sound.stop();
-			sound.destroy();
-		});
-		FlxG.sound.list.clear();
+		if (!keepCache) {
+			// Remove cached assets (prevents memory leaks that i can prevent)
+			lime.utils.Assets.cache.clear();
+			openfl.utils.Assets.cache.clear();
+			#if MODDING_ALLOWED
+			polymod.Polymod.clearCache();
+			#end
 
-		FlxG.bitmap.clearCache();
+			// Remove lingering sounds from the sound list
+			FlxG.sound.list.forEachAlive(function(sound:flixel.sound.FlxSound):Void {
+				FlxG.sound.list.remove(sound, true);
+				sound.stop();
+				sound.destroy();
+			});
+			FlxG.sound.list.clear();
 
-		// Clear actual assets from OpenFL and Lime itself
-		var cache:openfl.utils.AssetCache = cast openfl.utils.Assets.cache;
-		var lime_cache:lime.utils.AssetCache = cast lime.utils.Assets.cache;
+			FlxG.bitmap.clearCache();
 
-		// this totally isn't copied from polymod/backends/OpenFLBackend.hx trust me
-		for (key in cache.bitmapData.keys())
-			cache.bitmapData.remove(key);
-		for (key in cache.font.keys())
-			cache.font.remove(key);
+			// Clear actual assets from OpenFL and Lime itself
+			var cache:openfl.utils.AssetCache = cast openfl.utils.Assets.cache;
+			var lime_cache:lime.utils.AssetCache = cast lime.utils.Assets.cache;
 
-		for (key in cache.sound.keys()) {
-			cache.sound.get(key).close();
-			cache.sound.remove(key);
+			// this totally isn't copied from polymod/backends/OpenFLBackend.hx trust me
+			for (key in cache.bitmapData.keys())
+				cache.bitmapData.remove(key);
+			for (key in cache.font.keys())
+				cache.font.remove(key);
+
+			for (key in cache.sound.keys()) {
+				cache.sound.get(key).close();
+				cache.sound.remove(key);
+			}
+
+			// this totally isn't copied from polymod/backends/LimeBackend.hx trust me
+			for (key in lime_cache.image.keys())
+				lime_cache.image.remove(key);
+			for (key in lime_cache.font.keys())
+				lime_cache.font.remove(key);
+			for (key in lime_cache.audio.keys()) {
+				lime_cache.audio.get(key).dispose();
+				lime_cache.audio.remove(key);
+			};
+
+			ColorSwap.colorSwapCache.clear();
+
+			Paths.graphics.clear();
 		}
 
-		// this totally isn't copied from polymod/backends/LimeBackend.hx trust me
-		for (key in lime_cache.image.keys())
-			lime_cache.image.remove(key);
-		for (key in lime_cache.font.keys())
-			lime_cache.font.remove(key);
-		for (key in lime_cache.audio.keys()) {
-			lime_cache.audio.get(key).dispose();
-			lime_cache.audio.remove(key);
-		};
-
-		ColorSwap.colorSwapCache.clear();
-
-		Paths.graphics.clear();
-
-		// Run built-in garbage collector
+		// Run built-in garbage collector - ALWAYS runs regardless of persistentCachedData
 		#if cpp
 		cpp.vm.Gc.compact();
 		#end
 		#if sys
 		openfl.system.System.gc();
+		#end
+
+		// Log memory cleanup statistics
+		#if cpp
+		var afterMem:Float = external.memory.Memory.getCurrentUsage();
+		var freedMem:Float = beforeMem - afterMem;
+		if (freedMem > 0) {
+			if (clearedAssets) {
+				trace('Memory cleared: ${FlxStringUtil.formatBytes(freedMem)} freed (assets + GC)');
+			} else {
+				trace('Garbage collection: ${FlxStringUtil.formatBytes(freedMem)} freed');
+			}
+		}
 		#end
 	}
 

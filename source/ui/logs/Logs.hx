@@ -2,6 +2,8 @@ package ui.logs;
 
 import flixel.system.debug.log.LogStyle;
 import openfl.text.TextField;
+import openfl.text.TextFormat;
+import openfl.text.TextFormatAlign;
 import lime.app.Application;
 import openfl.events.Event;
 import flixel.util.FlxColor;
@@ -9,6 +11,43 @@ import flixel.FlxG;
 import openfl.display.Bitmap;
 import openfl.display.Sprite;
 import openfl.display.BitmapData;
+
+class LogPrint {
+	public var text:String = "[LOG]";
+	public var color:FlxColor = FlxColor.WHITE;
+
+	public function new(text:String, color:FlxColor){
+		this.text = text;
+		this.color = color;
+	}
+}
+
+class LogTextFormat extends TextFormat{
+	override public function new(_color:FlxColor = FlxColor.WHITE, _size:Int = 16){
+		super("assets/fonts/unifont-16.0.02.otf", _size, _color);
+		//this.leading = -2;
+	}
+}
+
+class LogText extends TextField{
+	override public function new(x:Float, y:Float, sizeData:Dynamic, text:String, size:Int, textAlign:TextFormatAlign = CENTER, ?color:FlxColor = FlxColor.WHITE){
+		super();
+		width = sizeData.width;
+		height = sizeData.height;
+		multiline = true;
+		wordWrap = true;
+		selectable = false;
+
+		var dtf:TextFormat = new TextFormat("assets/fonts/unifont-16.0.02.otf", size, color);
+		dtf.align = textAlign;
+		//dtf.leading = -2;
+		defaultTextFormat = dtf;
+		this.text = text;
+
+		this.x = x;
+		this.y = y;
+	}
+}
 
 class Logs extends Sprite {
 	public var logs:Array<String> = [];
@@ -35,7 +74,7 @@ class Logs extends Sprite {
 		bg.alpha = 0.5;
 		addChild(bg);
 
-		logText = new LogText(0, 60, {width: FlxG.width - 20, height: FlxG.height - 34}, "", 15, LEFT);
+		logText = new LogText(0, 100, {width: FlxG.width - 20, height: FlxG.height - 100}, "", 16, LEFT);
 		addChild(logText);
 
 		addEventListener(Event.ENTER_FRAME, onFrameUpdate);
@@ -53,12 +92,18 @@ class Logs extends Sprite {
 			logText.text = '';
 			errors = 0;
 		}
+
+		if (_pendingLogUpdate) {
+			updateLogDisplay();
+			_pendingLogUpdate = false;
+		}
 	}
 
 	private function onStageResized(w:Int, h:Int):Void {
 		bg.width = Application.current.window.width;
 		bg.height = Application.current.window.height;
-		logText.height = Application.current.window.height - 94;
+		logText.width = Application.current.window.width - 20;
+		logText.height = Application.current.window.height - 100;
 	}
 
 	public static inline function log(message:Dynamic) {
@@ -103,6 +148,15 @@ class Logs extends Sprite {
 		if (logs.length > 45)
 			logs.shift();
 
+		_pendingLogUpdate = true;
+	}
+
+	private var _pendingLogUpdate:Bool = false;
+
+	private function updateLogDisplay():Void {
+		if (logText == null)
+			return;
+
 		var colorThese:Array<Dynamic> = []; // [start,end,color];
 		var newText:String = "";
 		for (i in 0...logs.length) {
@@ -129,7 +183,7 @@ class Logs extends Sprite {
 		logText.text = newText;
 
 		for (i in colorThese)
-			logText.setTextFormat(new LogTextFormat(i[2], 15), i[0], i[1]);
+			logText.setTextFormat(new LogTextFormat(i[2], 16), i[0], i[1]);
 
 		logText.defaultTextFormat.align = LEFT;
 		if (logText != null)

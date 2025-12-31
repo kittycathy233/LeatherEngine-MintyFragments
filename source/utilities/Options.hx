@@ -69,6 +69,9 @@ class Options {
 				setData(option.value, option.option, saveKey);
 		}
 
+		// 迁移旧的 "memoryLeaks" 选项到新的 "persistentCachedData"
+		migrateLegacySettings();
+
 		Conductor.offset = getData("songOffset");
 
 		if (getData("modlist", "modlist") == null)
@@ -159,6 +162,17 @@ class Options {
 
 				setData(bindArray, "binds", "binds");
 			}
+		}
+	}
+
+	/**
+	 * 迁移旧的设置选项到新的命名，保持向后兼容性
+	 */
+	private static function migrateLegacySettings():Void {
+		// 迁移 memoryLeaks -> persistentCachedData
+		var oldMemoryLeaks = getData("memoryLeaks");
+		if (oldMemoryLeaks != null && getData("persistentCachedData") == null) {
+			setData(oldMemoryLeaks, "persistentCachedData");
 		}
 	}
 }
